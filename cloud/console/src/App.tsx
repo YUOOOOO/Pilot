@@ -178,7 +178,7 @@ export default function App() {
   else if (live.data && live.data.gate.active > 0) badges.live = { n: live.data.gate.active, tone: "" };
 
   useEffect(() => {
-    document.title = unlocked ? `${T.nav[route.page]} · nanoMuse admin` : "nanoMuse · admin";
+    document.title = unlocked ? `${T.nav[route.page]} · Pilot admin` : "Pilot · admin";
   }, [route.page, T, unlocked]);
 
   if (!unlocked) {

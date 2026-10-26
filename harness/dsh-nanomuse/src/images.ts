@@ -28,7 +28,7 @@ export interface ImageEndpoint {
   baseURL: string
   apiKey: string
   model: string
-  /** `nanoMuse Cloud`, or the row's label. */
+  /** `PilotCloud`, or the row's label. */
   label: string
   /** `nanomuse` for the account, else the own row's id. */
   instanceId: string

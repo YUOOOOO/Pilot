@@ -558,7 +558,7 @@ export default class NanomuseRooms extends Service {
     } catch (error) {
       this.warn('home workspace', error)
     }
-    const created = await sc.create(workspaceId ? { agentPreset: 'nanomuse', workspaceId: workspaceId as NonNullable<SessionCreateRequest['workspaceId']> } : { agentPreset: 'nanomuse', cwd: folder })
+    const created = await sc.create(workspaceId ? { agentPreset: 'pilot', workspaceId: workspaceId as NonNullable<SessionCreateRequest['workspaceId']> } : { agentPreset: 'pilot', cwd: folder })
     await sc.rename({ sessionId: created.sessionId, title: this.lang.startsWith('zh') ? '主要聊天' : 'Main chat' }).catch(() => undefined)
     // a conversation that already ran its course on an older chat stays over; a fresh install begins
     this.firstRun = startConversation(this.firstRun.phase === 'done' ? this.firstRun : { ...this.firstRun, phase: 'none' }, created.sessionId)
@@ -1416,7 +1416,7 @@ export default class NanomuseRooms extends Service {
     } catch (error) {
       this.warn('library workspace', error)
     }
-    const created = await sc.create(workspaceId ? { agentPreset: 'nanomuse', workspaceId: workspaceId as NonNullable<SessionCreateRequest['workspaceId']> } : { agentPreset: 'nanomuse', cwd: folder })
+    const created = await sc.create(workspaceId ? { agentPreset: 'pilot', workspaceId: workspaceId as NonNullable<SessionCreateRequest['workspaceId']> } : { agentPreset: 'pilot', cwd: folder })
     await sc.rename({ sessionId: created.sessionId, title: zh ? pair[1] : pair[0] }).catch(() => undefined)
     const resolved = await sc.resolveAgent(created.sessionId)
     if (!('error' in resolved)) {
@@ -1448,7 +1448,7 @@ export default class NanomuseRooms extends Service {
   private async open(title: string, prompt: string, options: { cwd?: string; preset?: string; notice?: string } = {}): Promise<string> {
     const sc = this.ctx.get('sessionController')
     if (!sc) throw new RelayError(503, 'no_sessions', 'Chats are not available yet')
-    const created = await sc.create({ agentPreset: 'nanomuse', cwd: options.cwd ?? homeDir() })
+    const created = await sc.create({ agentPreset: 'pilot', cwd: options.cwd ?? homeDir() })
     await sc.rename({ sessionId: created.sessionId, title: title.slice(0, 80) }).catch(() => undefined)
     await this.say(created.sessionId, prompt, options.preset, options.notice ?? title)
     return created.sessionId
@@ -1600,7 +1600,7 @@ export default class NanomuseRooms extends Service {
     const sc = this.ctx.get('sessionController')
     if (!sc) throw new Error('chats are not available yet')
     if (!(await this.ctx.nanomuseCloud.status()).ready) throw new Error('no model is set up')
-    const created = await sc.create({ agentPreset: 'nanomuse', cwd: homeDir() })
+    const created = await sc.create({ agentPreset: 'pilot', cwd: homeDir() })
     await sc.rename({ sessionId: created.sessionId, title }).catch(() => undefined)
     const resolved = await sc.resolveAgent(created.sessionId)
     if ('error' in resolved) throw new Error(`the chat could not be opened: ${String(resolved.error)}`)

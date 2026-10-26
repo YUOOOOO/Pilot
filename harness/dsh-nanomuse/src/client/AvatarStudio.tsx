@@ -137,7 +137,7 @@ export function AvatarStudioSheet({ t, initial, style: initialStyle, onClose }: 
   const [moods, setMoods] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | undefined>()
   const [busy, setBusy] = useState(false)
-  // *Use nanoMuse Cloud this time* (0.1.41): the round after an own provider failed draws through the account, the slot untouched
+  // *Use PilotCloud this time* (0.1.41): the round after an own provider failed draws through the account, the slot untouched
   const [viaCloud, setViaCloud] = useState(false)
   const live = useLive()
   const alive = useRef(true)

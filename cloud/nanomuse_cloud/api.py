@@ -429,7 +429,7 @@ def create_app(
             await collector.stop()
             await http.aclose()
 
-    app = FastAPI(title="nanoMuse Cloud", version=__version__, docs_url=None, redoc_url=None, lifespan=lifespan)
+    app = FastAPI(title="PilotCloud", version=__version__, docs_url=None, redoc_url=None, lifespan=lifespan)
     app.state.cloud = cloud
     app.state.settings = settings
     app.state.http = http
@@ -456,7 +456,7 @@ def create_app(
     # what still answers while the *Cloud service* switch is off: the health check, the
     # console and its API, and the public figures (which say the service is paused)
     OPEN_WHILE_PAUSED = ("/healthz", "/app", "/v1/admin/", "/v1/config")
-    SERVICE_PAUSED_MESSAGE = "nanoMuse Cloud is paused by its operator for now; your sign-in and your data are kept. Try again later."
+    SERVICE_PAUSED_MESSAGE = "PilotCloud is paused by its operator for now; your sign-in and your data are kept. Try again later."
 
     # whose X-Forwarded-For to believe: TRUSTED_PROXIES when set, else every non-global peer;
     # the same list uvicorn's proxy-headers middleware runs with (__main__.py)
@@ -512,13 +512,13 @@ def create_app(
 
     def upstream_headers() -> dict[str, str]:
         if not settings.upstream_key:
-            raise CloudError(503, "upstream_unconfigured", "nanoMuse Cloud has no model key configured")
+            raise CloudError(503, "upstream_unconfigured", "PilotCloud has no model key configured")
         return {"Authorization": f"Bearer {settings.upstream_key}", "Content-Type": "application/json"}
 
     def dashscope_headers() -> dict[str, str]:
         key = settings.dashscope_key or settings.upstream_key
         if not key:
-            raise CloudError(503, "upstream_unconfigured", "nanoMuse Cloud has no media model key configured")
+            raise CloudError(503, "upstream_unconfigured", "PilotCloud has no media model key configured")
         return {"Authorization": f"Bearer {key}", "Content-Type": "application/json"}
 
     # -- health ----------------------------------------------------------------
@@ -891,7 +891,7 @@ def create_app(
             m = cloud.model_for(model_id, kind, caller)
         if m is None:
             more = " on the menu; add ?kind=chat|image|video to ask for one beyond it" if cloud.any_model(caller) else ""
-            raise CloudError(404, "model_not_offered", f"nanoMuse Cloud does not offer {model_id!r}{more}")
+            raise CloudError(404, "model_not_offered", f"PilotCloud does not offer {model_id!r}{more}")
         return m.to_public()
 
     # -- chat -----------------------------------------------------------------------------
@@ -1249,7 +1249,7 @@ def create_app(
         except (TypeError, ValueError) as e:
             raise CloudError(400, "bad_request", "n is a whole number") from e
         if n != 1:
-            raise CloudError(400, "bad_request", "nanoMuse Cloud draws one picture per request")
+            raise CloudError(400, "bad_request", "PilotCloud draws one picture per request")
         params = {"size": size, "watermark": False}
         if spec.upstream.startswith("qwen-image"):
             params["prompt_extend"] = False
@@ -1279,7 +1279,7 @@ def create_app(
     ) -> Response:
         spec = cloud.model_for(model, "image", caller)
         if n != 1:
-            raise CloudError(400, "bad_request", "nanoMuse Cloud draws one picture per request")
+            raise CloudError(400, "bad_request", "PilotCloud draws one picture per request")
         # read one byte past the cap rather than the whole picture first: larger than the
         # limit is refused, so nothing beyond it is ever held
         data = await image.read(settings.max_request_bytes + 1)

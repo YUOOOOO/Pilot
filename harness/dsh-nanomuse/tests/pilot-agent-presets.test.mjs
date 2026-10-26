@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { listAgentPresets, selectSessionAgentPreset } from '../src/client/pilot-agent-presets.ts'
+import { hiddenAgentMode, listAgentPresets, selectSessionAgentPreset } from '../src/client/pilot-agent-presets.ts'
 
 test('agent mode choices come from the host including custom names', async () => {
   const presets = [{ id: 'standard' }, { id: 'custom', name: 'My mode', description: 'Local tools' }]
@@ -25,4 +25,10 @@ test('missing session targets never reach the host and network failures propagat
   await assert.rejects(selectSessionAgentPreset(remote, 'session-a', ''))
   assert.equal(calls, 0)
   await assert.rejects(selectSessionAgentPreset(remote, 'session-a', 'ptc'), /Offline/)
+})
+test('nexo hides the mode switch and other sessions keep it', () => {
+  const nexo = { id: 'main', updatedAt: 1, blank: false }
+  const side = { id: 'side', updatedAt: 2, blank: true }
+  assert.equal(hiddenAgentMode('main', [nexo, side], 'main'), true)
+  assert.equal(hiddenAgentMode('side', [nexo, side], 'main'), false)
 })

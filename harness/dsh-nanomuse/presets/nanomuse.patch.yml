@@ -1,4 +1,4 @@
-# Agent preset "nanoMuse": the persona of a personal agent on top of the same
+# Agent preset "pilot": the persona of a personal agent on top of the same
 # capability set as DeepSeek Harness' shipped `standard` preset (tools, skills,
 # goals, plan mode, compaction, delegation). The Web app composes a session
 # from exactly one preset, and a complete preset persona suppresses the global
@@ -8,20 +8,23 @@
 # of the pinned dsh version; when dsh moves, diff against it. Only the `persona`
 # row differs. Our own capabilities (Hands, Reach, the Sentinel gate) will be
 # added to this list as plugins, which is the point of the exercise.
+# The file name stays `nanomuse.patch.yml` so the upstream patch path is unchanged.
+# `id: nanomuse` remains only so sessions created before the rename still resolve;
+# the mode menu does not offer it.
 - insert:
-    - id: preset-nanomuse
+    - id: preset-pilot
       name: '@deepseek-ai/dsh-agent-preset'
       config:
-        id: nanomuse
-        name: nanoMuse
-        description: A personal agent on your own devices. Same tools as Standard, nanoMuse's voice.
+        id: pilot
+        name: Pilot
+        description: A personal agent on your own devices. Same tools as Standard, Pilot's voice.
         order: 0
-        plugins:
+        plugins: &pilot-plugins
           - id: persona
             name: '@deepseek-ai/dsh-persona'
             config:
               prefix: >-
-                You are nanoMuse, an open-source personal agent that lives on this
+                You are Pilot, an open-source personal agent that lives on this
                 person's own devices, built on DeepSeek Harness and currently
                 answering through the {{model}} model. You speak plainly and
                 briefly, in the language the person writes in, and you say what
@@ -194,3 +197,11 @@
           # `nanomuse-connectors`' loopback proxy, which holds the credentials.
           - id: nanomuse-connectors-tools
             name: dsh-nanomuse/connectors-tools
+    - id: preset-nanomuse
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: nanomuse
+        name: Pilot
+        description: Legacy id for sessions created before this preset was renamed to pilot. Same voice and tools; not offered in the mode menu.
+        order: 80
+        plugins: *pilot-plugins

@@ -1642,7 +1642,7 @@ class Cloud:
             raise CloudError(
                 410,
                 "hosted_media_retired",
-                f"nanoMuse Cloud no longer generates {noun}. Add your own image or video "
+                f"PilotCloud no longer generates {noun}. Add your own image or video "
                 "provider and API key in Settings → Models, then try again.",
                 {"kind": kind, "action": "configure_own_provider"},
             )
@@ -1657,7 +1657,7 @@ class Cloud:
         if m is not None:
             raise CloudError(404, "model_not_offered", f"{model_id!r} is a {m.kind} model, not a {kind} one; choose one of: {offered}")
         more = ", or any model of the provider's by its id" if self.any_model(caller) else ""
-        raise CloudError(404, "model_not_offered", f"nanoMuse Cloud does not offer {model_id!r}; choose one of: {offered}{more}")
+        raise CloudError(404, "model_not_offered", f"PilotCloud does not offer {model_id!r}; choose one of: {offered}{more}")
 
     def offered_models(self) -> tuple[ModelSpec, ...]:
         """The configured menu after operator feature switches are applied."""
@@ -1708,7 +1708,7 @@ class Cloud:
             raise CloudError(
                 402,
                 "out_of_tokens",
-                "Your nanoMuse Cloud grant is used up. Add your own model key under Settings → Providers to keep going.",
+                "Your PilotCloud grant is used up. Add your own model key under Settings → Providers to keep going.",
             )
         t = now()
         if self.in_flight.full(caller.account_id):
@@ -2284,7 +2284,7 @@ class Cloud:
             raise CloudError(
                 410,
                 "hosted_media_retired",
-                f"nanoMuse Cloud no longer generates {noun}. Add your own {kind} provider "
+                f"PilotCloud no longer generates {noun}. Add your own {kind} provider "
                 "and API key in Settings → Models to use this feature.",
                 {"kind": kind, "action": "configure_own_provider"},
             )
@@ -2293,14 +2293,14 @@ class Cloud:
         if images:
             m = self.model_for(image_model, "image", caller) if image_model else next((x for x in self.s.models if x.kind == "image"), None)
             if m is None:
-                raise CloudError(404, "model_not_offered", "nanoMuse Cloud offers no image model")
+                raise CloudError(404, "model_not_offered", "PilotCloud offers no image model")
             c = m.image_cost_uy(size) * images
             cost += c
             parts.append({"kind": "image", "model": m.id, "count": images, "cny": self.s.uy_to_cny(c)})
         if clips:
             m = self.model_for(video_model, "video", caller) if video_model else next((x for x in self.s.models if x.kind == "video"), None)
             if m is None:
-                raise CloudError(404, "model_not_offered", "nanoMuse Cloud offers no video model")
+                raise CloudError(404, "model_not_offered", "PilotCloud offers no video model")
             c = m.video_cost_uy(m.clip_seconds) * clips
             cost += c
             parts.append({"kind": "video", "model": m.id, "count": clips, "seconds": m.clip_seconds, "cny": self.s.uy_to_cny(c)})

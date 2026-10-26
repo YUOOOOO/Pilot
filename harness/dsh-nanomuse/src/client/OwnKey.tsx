@@ -348,12 +348,12 @@ function hostOf(url: string): string {
 export type Group = 'account' | 'first' | 'signIn' | 'rest' | 'local' | 'custom'
 export const ALL_GROUPS: Group[] = ['account', 'first', 'signIn', 'rest', 'local', 'custom']
 
-/** The account's row, first while signed in: what nanoMuse Cloud covers right now (the relay's model list). */
+/** The account's row, first while signed in: what PilotCloud covers right now (the relay's model list). */
 function AccountRow({ t, view }: { t: Translate; view: ProvidersView }): ReactNode {
   return h('div', { className: 'nm-way', 'data-testid': 'nm-way-account' },
     h('span', { className: 'nm-way-icon' }, h(IconGlobe, { size: 15 })),
     h('div', { className: 'nm-way-main' },
-      h('div', { className: 'nm-way-title' }, 'nanoMuse Cloud', h('span', { style: { ...muted, marginLeft: 8 } }, coverage(t, view.cloud.capabilities))),
+      h('div', { className: 'nm-way-title' }, 'PilotCloud', h('span', { style: { ...muted, marginLeft: 8 } }, coverage(t, view.cloud.capabilities))),
       h('div', { className: 'nm-way-sub nm-wrap' }, t('ownKeyAccountSub'))))
 }
 
@@ -415,7 +415,7 @@ export const MODELS_SECTION = 'nanomuse-models'
  */
 export function ModelsLink({ t, view }: { t: Translate; view: ProvidersView }): ReactNode {
   // the slot names the row's id (`custom-2` for a second hand-made endpoint), which is the catalogue id for a vendor
-  const labelOf = (provider: string) => (provider === 'nanomuse' ? 'nanoMuse Cloud' : (view.configured.find((p) => p.id === provider) ?? view.configured.find((p) => p.provider === provider))?.label || provider)
+  const labelOf = (provider: string) => (provider === 'nanomuse' ? 'PilotCloud' : (view.configured.find((p) => p.id === provider) ?? view.configured.find((p) => p.provider === provider))?.label || provider)
   const line = (slot: { provider: string; model: string }) => (slot.model ? `${labelOf(slot.provider)} · ${slot.model}` : t('mdPick'))
   return h('div', { className: 'nm-card', style: { marginTop: 4 } },
     h('button', { type: 'button', className: 'nm-row nm-row-button', 'data-testid': 'nm-models-link', onClick: () => { settingsBus.openSection?.(MODELS_SECTION) } },

@@ -5,7 +5,7 @@
 export type Lang = "zh" | "en";
 
 export const zh = {
-  app: "nanoMuse 控制台",
+  app: "Pilot 控制台",
   nav: {
     insight: "洞察",
     ops: "运营",
@@ -33,7 +33,7 @@ export const zh = {
   } as Record<string, string>,
   lock: {
     title: "管理口令",
-    hint: "这是 nanoMuse Cloud 的管理控制台。输入 ADMIN_TOKEN 进入；口令只保存在这个标签页里。",
+    hint: "这是 PilotCloud 的管理控制台。输入 ADMIN_TOKEN 进入；口令只保存在这个标签页里。",
     placeholder: "ADMIN_TOKEN",
     enter: "进入",
     bad: "口令不对，或者服务没有响应。",
@@ -962,7 +962,7 @@ export const zh = {
 export type Strings = typeof zh;
 
 export const en: Strings = {
-  app: "nanoMuse console",
+  app: "Pilot console",
   nav: {
     insight: "Insight",
     ops: "Operations",
@@ -990,7 +990,7 @@ export const en: Strings = {
   },
   lock: {
     title: "Admin token",
-    hint: "This is the nanoMuse Cloud console. Enter ADMIN_TOKEN; it stays in this tab only.",
+    hint: "This is the PilotCloud console. Enter ADMIN_TOKEN; it stays in this tab only.",
     placeholder: "ADMIN_TOKEN",
     enter: "Enter",
     bad: "Wrong token, or the service did not answer.",

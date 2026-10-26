@@ -3,7 +3,7 @@
 // HTTP_PROXY / HTTPS_PROXY / NO_PROXY when NODE_USE_ENV_PROXY=1 (Node 24, which Electron 44
 // carries; checked against a loopback forward proxy: an http:// and a socks5:// proxy are both
 // taken, ALL_PROXY alone is not read). The bundled runtime for the hands, a child of the Host,
-// inherits the same variables and httpx reads them too. nanoMuse Cloud and loopback are on
+// inherits the same variables and httpx reads them too. PilotCloud and loopback are on
 // NO_PROXY, so the relay, the hub's WebSocket and the sync never go through the proxy.
 
 /** The schemes a proxy address may carry: a plain or TLS HTTP proxy, SOCKS5 with local or remote name lookup. */

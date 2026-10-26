@@ -1,5 +1,5 @@
 /**
- * The nanoMuse Cloud relay as a client: the handful of `/v1` calls the desktop
+ * The PilotCloud relay as a client: the handful of `/v1` calls the desktop
  * needs to sign in, learn who it is and which models the account's key may use.
  * Plain `fetch`, no Cordis — the service in `cloud.ts` owns state and wiring,
  * and the tests drive this against a fake relay.
@@ -155,7 +155,7 @@ export interface Estimate {
   videoModel: string
   /** Who draws the pictures (0.1.41): the account, or an own row (nothing billed by the account). */
   source?: 'cloud' | 'provider'
-  /** That source's label (`nanoMuse Cloud`, the row's label). */
+  /** That source's label (`PilotCloud`, the row's label). */
   label?: string
 }
 

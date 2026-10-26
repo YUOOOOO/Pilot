@@ -237,7 +237,7 @@ export class TaskRunner {
         return known
       }
     }
-    const created = await this.ctx.sessionController.create({ agentPreset: 'nanomuse' })
+    const created = await this.ctx.sessionController.create({ agentPreset: 'pilot' })
     const title = `From ${from.name || from.id}`
     await this.ctx.sessionController.rename({ sessionId: created.sessionId, title }).catch(() => undefined)
     this.conversations.set(k, created.sessionId)

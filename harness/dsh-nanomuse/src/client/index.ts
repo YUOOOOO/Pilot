@@ -45,8 +45,8 @@ import type { UseSessionStatus } from './MuseHeader.tsx'
 import { PilotHome } from './PilotBrand.tsx'
 import { PilotSessionTabs, openPilotTab } from './PilotSessionTabs.tsx'
 import { PILOT_COMPOSER_STYLES, PilotAgentControl, PilotContextUsage } from './PilotComposer.tsx'
-import { listAgentPresets, selectSessionAgentPreset, type PilotAgentPresetRemote, type UseAgentSessions } from './pilot-agent-presets.ts'
-import type { UseSessionList } from './MuseChats.tsx'
+import { STANDARD_AGENT_PRESET, listAgentPresets, selectSessionAgentPreset, type PilotAgentPresetRemote, type UseAgentSessions } from './pilot-agent-presets.ts'
+import type { UseSessionList, UseWorkspaceList } from './MuseChats.tsx'
 import { CONNECTORS_SECTION, makeConnectorsSection } from './Connectors.tsx'
 import { DICTATION_SECTION, FILES_SECTION, makeDictationSection, makeFilesSection, makePermissionsSection, PERMISSIONS_SECTION } from './Pages.tsx'
 import { makeTurnError } from './RefusalCard.tsx'
@@ -294,6 +294,7 @@ export function apply(ctx: ClientContext): void {
     const sessions = getService('sessions') as SessionsService | undefined
     if (!sessions) throw new Error('Session service unavailable')
     const id = await sessions.create({ workspaceId })
+    await selectSessionAgentPreset(getService('remote.agentPresets') as PilotAgentPresetRemote, id, STANDARD_AGENT_PRESET)
     win.openDoc(null)
     openPilotTab(id)
     workspaces.openSession(id)
@@ -371,7 +372,7 @@ export function apply(ctx: ClientContext): void {
   let activePanel: string | null = null
   roomsNav.openSession = (id) => { chatActions.openSession(id) }
   roomsNav.showChats = () => { selectPanel(null) }
-  roomsNav.startSession = () => { workspaces.startSession() }
+  roomsNav.startSession = () => { chatActions.startSession() }
   roomsNav.activePanel = () => activePanel
   roomsNav.prefill = prefillComposer
   // The split: the chat takes the main area, the room docks at the right.
@@ -422,9 +423,9 @@ export function apply(ctx: ClientContext): void {
     })
   }
   slots.inject('conversation.header.leading', () =>
-    slots.register({ name: 'conversation.header.leading', locale: 'nanomuse' }, ({ useSessionStatus, useSessions }: { useSessionStatus?: UseSessionStatus; useSessions?: UseSessionList }) =>
+    slots.register({ name: 'conversation.header.leading', locale: 'nanomuse' }, ({ useSessionStatus, useSessions, useWorkspaces }: { useSessionStatus?: UseSessionStatus; useSessions?: UseSessionList; useWorkspaces?: UseWorkspaceList }) =>
       h('div', { className: 'pilot-conversation-header' },
-        typeof useSessions === 'function' ? h(PilotSessionTabs, { t, useSessions, useSessionStatus, actions: chatActions }) : null)))
+        typeof useSessions === 'function' ? h(PilotSessionTabs, { t, useSessions, useSessionStatus, useWorkspaces, actions: chatActions }) : null)))
 
   // Invite, at the top right of a chat; the profile drawer over the frame.
   const InviteButton = makeInviteButton(t)
@@ -460,7 +461,7 @@ export function apply(ctx: ClientContext): void {
       if (result && result.ok === false) throw new Error(result.error?.message ?? 'prompt refused')
     })
   }
-  const TurnError = makeTurnError(t, { retry: resend, newChat: () => { workspaces.startSession() } })
+  const TurnError = makeTurnError(t, { retry: resend, newChat: () => { chatActions.startSession() } })
   slots.inject('conversation.chat.node', () =>
     slots.register({ name: 'conversation.chat.node', key: 'turn-error', priority: -1, locale: 'nanomuse' }, TurnError))
   // The 80 % heads-up above the composer, once per pool size (the phones' one-line heads-up in the chat).
@@ -668,7 +669,7 @@ export function apply(ctx: ClientContext): void {
   // The quick-chat key (the shell's ⌥ Space): a fresh chat with the composer focused.
   const quickChatOff = bridge()?.onQuickChat?.(() => {
     layout.selectPanel(null)
-    workspaces.startSession()
+    chatActions.startSession()
     window.setTimeout(() => (document.querySelector('[contenteditable="true"]') as HTMLElement | null)?.focus(), 200)
   })
   if (quickChatOff) ctx.effect(() => quickChatOff, 'nanomuse: quick chat')

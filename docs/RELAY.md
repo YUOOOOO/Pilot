@@ -1,6 +1,6 @@
 # Pilot 服务器中继
 
-本轮优先实现服务器端。复用 nanoMuse 固定提交 `010e886822ce95a70df55a4d4c4a67b2e333cb66` 的 `nanomuse-cloud 0.27.0`，保留认证、设备 Hub、同步、请求转发、限流与管理接口；不重写协议或执行引擎。上游源码在 `cloud/nanomuse_cloud/`，原控制台仍保留 nanoMuse 标识。Pilot 启动与部署适配在新增文件中。
+本轮优先实现服务器端。复用 nanoMuse 固定提交 `010e886822ce95a70df55a4d4c4a67b2e333cb66` 的 `nanomuse-cloud 0.27.0`，保留认证、设备 Hub、同步、请求转发、限流与管理接口；不重写协议或执行引擎。上游源码在 `cloud/nanomuse_cloud/`。对外名称已改为 PilotCloud，包名、模块路径和 `NANOMUSE_CLOUD_URL` 未改。Pilot 启动与部署适配在新增文件中。
 
 ## 本轮结果与边界
 

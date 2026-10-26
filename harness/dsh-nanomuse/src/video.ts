@@ -37,7 +37,7 @@ export interface VideoEndpoint {
   host: string
   apiKey: string
   model: string
-  /** Where the key is from, for the settings row: `nanoMuse Cloud`, a provider's name. */
+  /** Where the key is from, for the settings row: `PilotCloud`, a provider's name. */
   label: string
   /** The provider the key belongs to (`nanomuse` for the account). */
   instanceId: string

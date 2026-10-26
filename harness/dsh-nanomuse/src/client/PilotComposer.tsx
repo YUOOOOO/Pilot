@@ -3,7 +3,8 @@ import { createElement as h, useEffect, useRef, useState, type ReactNode } from 
 import type { Translate } from './api.ts'
 import { IconCpu } from './icons.tsx'
 import { ListMenu } from './PilotListMenus.tsx'
-import type { PilotAgentPreset, UseAgentSessions } from './pilot-agent-presets.ts'
+import { hiddenAgentMode, LEGACY_AGENT_PRESET, PILOT_AGENT_PRESET, type PilotAgentPreset, type UseAgentSessions } from './pilot-agent-presets.ts'
+import { readStoredMain } from './pilot-session-label.ts'
 
 interface AgentControlProps {
   t: Translate
@@ -14,6 +15,8 @@ interface AgentControlProps {
 }
 export function PilotAgentControl({ t, sessionId, useAgentSessions, load, select }: AgentControlProps): ReactNode {
   const session = useAgentSessions(state => state.byId[sessionId])
+  const rows = useAgentSessions((state) => Object.entries(state.byId).map(([id, row]) => ({ id, updatedAt: (row as { updatedAt?: number }).updatedAt, origin: (row as { origin?: 'subagent' }).origin, parentId: (row as { parentId?: string }).parentId, blank: row.blank })))
+  const fixed = hiddenAgentMode(sessionId, rows, readStoredMain())
   const projected = typeof session?.projectionValues?.agentPreset === 'string' ? session.projectionValues.agentPreset : undefined
   const [selected, setSelected] = useState<string>()
   const current = selected ?? projected
@@ -32,20 +35,28 @@ export function PilotAgentControl({ t, sessionId, useAgentSessions, load, select
     load().then(rows => { if (active) { setOptions(rows); setError('') } }).catch(e => { if (active) setError(String(e instanceof Error ? e.message : e)) }).finally(() => { if (active) setLoading(false) })
     return () => { active = false }
   }, [load])
-  const keys = { standard: 'pilotAgentStandard', ptc: 'pilotAgentPtc', minimal: 'pilotAgentMinimal', cordis: 'pilotAgentCreator' } as const
-  const label = (preset: PilotAgentPreset): string => preset.name ?? (preset.id in keys ? t(keys[preset.id as keyof typeof keys]) : preset.id)
-  const chosen = options.find(option => option.id === current)
+  const keys = { standard: 'pilotAgentStandard', ptc: 'pilotAgentPtc', minimal: 'pilotAgentMinimal', cordis: 'pilotAgentCreator', pilot: 'pilotAgentPilot' } as const
+  const label = (preset: PilotAgentPreset): string => preset.id === PILOT_AGENT_PRESET ? t('pilotAgentPilot') : preset.name ?? (preset.id in keys ? t(keys[preset.id as keyof typeof keys]) : preset.id)
+  const shown = options.filter((option) => option.id !== LEGACY_AGENT_PRESET)
+  const chosen = shown.find(option => option.id === current)
   const locked = !session || !session.blank || session.running === true
   const pick = async (id: string) => {
-    if (pending.current || locked || id === current) return
+    if (pending.current || locked || fixed || id === current) return
     pending.current = true; setBusy(true); setError('')
     try { const applied = await select(id); if (alive.current) setSelected(applied) }
     catch (e) { if (alive.current) setError(String(e instanceof Error ? e.message : e)) }
     finally { pending.current = false; if (alive.current) setBusy(false) }
   }
+  useEffect(() => {
+    if (!fixed || !session?.blank || session.running === true || !current || current === PILOT_AGENT_PRESET) return
+    let active = true
+    void select(PILOT_AGENT_PRESET).then((applied) => { if (active && alive.current) setSelected(applied) }).catch((e) => { if (active && alive.current) setError(String(e instanceof Error ? e.message : e)) })
+    return () => { active = false }
+  }, [current, fixed, select, session?.blank, session?.running])
+  if (fixed) return null
   return h('div', { className: 'pilot-agent-control' },
     h('button', { type: 'button', className: 'pilot-composer-agent', title: locked ? t('pilotAgentLocked') : t('pilotComposerAgentSettings'), 'aria-label': t('pilotComposerAgentSettings'), 'aria-haspopup': 'menu', 'aria-expanded': !!anchor, 'aria-busy': busy || loading, disabled: busy || loading, onClick: (event: React.MouseEvent<HTMLButtonElement>) => setAnchor(anchor ? null : event.currentTarget) }, h(IconCpu, { size: 14 }), h('span', { className: 'pilot-agent-label' }, chosen ? label(chosen) : current ?? t('pilotComposerAgent')), h('svg', { className: 'pilot-agent-chevron', width: 12, height: 12, viewBox: '0 0 16 16', fill: 'none', stroke: 'currentColor', strokeWidth: 1.25, strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true }, h('path', { d: 'm4 6 4 4 4-4' }))),
-    anchor ? h(ListMenu, { anchor, title: locked ? t('pilotAgentLocked') : t('pilotAgentCurrent'), close: () => setAnchor(null), items: options.map(option => ({ id: option.id, label: label(option), checked: current === option.id, disabled: locked, run: () => { void pick(option.id) } })) }) : null,
+    anchor ? h(ListMenu, { anchor, title: locked ? t('pilotAgentLocked') : t('pilotAgentCurrent'), close: () => setAnchor(null), items: shown.map(option => ({ id: option.id, label: label(option), checked: current === option.id, disabled: locked, run: () => { void pick(option.id) } })) }) : null,
     error ? h('span', { role: 'alert', className: 'pilot-agent-error', title: error }, error) : null)
 }
 interface Pressure { projectedTokens?: number; pressureTokens?: number; contextWindow?: number }

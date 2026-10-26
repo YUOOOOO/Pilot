@@ -1,4 +1,4 @@
-# nanoMuse Cloud
+# PilotCloud
 
 A small relay that lets someone use nanoMuse without owning an API key. Sign up
 with a phone number or an e-mail address, get a starter allowance of tokens, and
@@ -204,7 +204,7 @@ for the full list. The ones that matter:
 | `CODE_SENDER` | `log` | `log`, `smtp`, `aliyun` or `both` (SMS for phones, mail for addresses) |
 | `ALIYUN_SMS_API` | `dypns` | `dypns` (号码认证服务 `SendSmsVerifyCode`) or `dysms` (短信服务 `SendSms`) |
 | `CLOUD_MODELS` | `Qwen/Qwen3.6-27B-FP8` | JSON list to replace the hosted menu and lanes (`for`, `recommended_for`); media kinds take effect only on a self-hosted relay with `CLOUD_MEDIA_ENABLED=1` |
-| `CLOUD_MEDIA_ENABLED` | `0` | self-hosters may set `1` to run the historical native media proxy with their own provider account; project-hosted nanoMuse Cloud leaves it off |
+| `CLOUD_MEDIA_ENABLED` | `0` | self-hosters may set `1` to run the historical native media proxy with their own provider account; project-hosted PilotCloud leaves it off |
 | `CLOUD_MODEL_ALIASES` | built-in aliases only | JSON object mapping old or saved model ids to ids in `CLOUD_MODELS`, useful when changing provider |
 | `CLOUD_ANY_MODEL_MEMBERS` | `1` | members may name any model of the provider's for its kind (chat, image, video) — see below; `0` = the menu only |
 | `CLOUD_CATALOG` | `1` | list the usable models under the operator's key after the menu in a member's `/v1/models`, read from the provider's own `/models` (0.10) — see below; `0` = the menu only, a member types an id |

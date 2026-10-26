@@ -22,8 +22,8 @@
     },
     {
       "path": "harness/dsh-nanomuse/src/client/MuseChats.tsx",
-      "sha256": "bc44d170945d4b5c6077e2e0c64576c69cf8a21a12b500a0aaf2ed2c7ebc9f14",
-      "reason": "Pilot project grouping and list menus; retain blank/archived sessions, explicit restore and empty hint; fixed nexo main row with personal-document menu and no rename"
+      "sha256": "b530a649f65a3c50ac9015703f197752332a2496b673348e60db1796513d5823",
+      "reason": "Pilot project grouping and list menus; retain blank/archived sessions, explicit restore and empty hint; fixed nexo main row with personal-document menu and no rename; session tab titles match the list and nexo stays fixed"
     },
     {
       "path": "harness/dsh-nanomuse/src/client/MuseHeader.tsx",
@@ -37,13 +37,13 @@
     },
     {
       "path": "harness/dsh-nanomuse/src/client/index.ts",
-      "sha256": "5a7c8aa255cca447fd01bb1237c17d1b3b0d12f73b76a31744278145a1087e9f",
-      "reason": "Pilot slots, per-session presets and model tabs; close personal-document editor when opening or creating a session"
+      "sha256": "dd3b635fa3960b6358a52bb557b9aebce7535bed797b4390cddfe07be714ef9d",
+      "reason": "Pilot slots, per-session presets and model tabs; close personal-document editor when opening or creating a session; session tab titles match the list and nexo stays fixed; nexo keeps the Pilot preset and new sessions select standard"
     },
     {
       "path": "harness/dsh-nanomuse/src/client/locales.ts",
-      "sha256": "e6479066b2f69ee7108f3e3faa7701ad8b6ca69dd586b0e96cab8a6df9ee646e",
-      "reason": "Pilot dictionaries including unified model tabs, restore, empty projects and fixed nexo main-conversation label"
+      "sha256": "fb1f2b9d96c6ae854abf21481bc7cceaec13b30e764d3961e12b633f32f5e936",
+      "reason": "Pilot dictionaries including unified model tabs, restore, empty projects and fixed nexo main-conversation label; PilotCloud display name; Pilot agent-mode label"
     },
     {
       "path": "harness/dsh-nanomuse/src/client/Sections.tsx",
@@ -57,8 +57,8 @@
     },
     {
       "path": "harness/dsh-nanomuse/src/client/ModelsSection.tsx",
-      "sha256": "0b3d6ca1ceba3abc3dd2295517b0a5cbd4ccb6a8a14bd36df7f8926bf28d2df0",
-      "reason": "Reuse original four model assignment setters in tabs; refresh on activation and switch Add provider within the unified page"
+      "sha256": "22b74c54705fe78634b3565241276e7ed04af60f5403adf16d9f4c631291c26d",
+      "reason": "Reuse original four model assignment setters in tabs; refresh on activation and switch Add provider within the unified page; PilotCloud display name"
     },
     {
       "path": "harness/dsh-nanomuse/src/client/Pages.tsx",
@@ -67,8 +67,23 @@
     },
     {
       "path": "harness/dsh-nanomuse/src/rooms.ts",
-      "sha256": "ac6d3b70d1874afd0ec1bbab383f7ae113f46bf47cea8cecd6a2eadc6f6349e9",
-      "reason": "Guarded read-only creation-date route delegates to existing DSH inspect/list without activating agents"
+      "sha256": "8ab16bbe4e056ead95d793d85f5b7f2958fa54d4816e3a471a99286f3fd436e2",
+      "reason": "Guarded read-only creation-date route delegates to existing DSH inspect/list without activating agents; internal room sessions use the renamed Pilot preset"
+    },
+    {
+      "path": "harness/dsh-nanomuse/presets/nanomuse.patch.yml",
+      "sha256": "1fd6ff80b96ba75832bf4327ae36a452fb67e7d77117d2cd41c978f306cb149d",
+      "reason": "Rename the personal agent preset id and persona from nanoMuse to Pilot; keep legacy id nanomuse so existing sessions still resolve"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/task.ts",
+      "sha256": "1f983542a17a40ada48edda5cc1b6892b09a48fa53f7c794e1ebb9d7c086a9d7",
+      "reason": "Create task conversations with the renamed Pilot agent preset"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/task.test.mjs",
+      "sha256": "306c78c19daf7e1047db981c746633af4a20bf4d6287c10eabb9835d8c7f3302",
+      "reason": "Expect task conversations to use the renamed Pilot agent preset"
     },
     {
       "path": "harness/dsh-nanomuse/src/client/panels.ts",
@@ -79,6 +94,226 @@
       "path": "harness/dsh-nanomuse/tests/locales.test.mjs",
       "sha256": "6849ec849a7f7ef2d4c28e49c8a59ecc6996ed8a1c03ad422ea94d9afebca89d",
       "reason": "Register nexo as an intentional fixed proper name in both dictionaries; retain all existing locale checks"
+    },
+    {
+      "path": "cloud/.env.example",
+      "sha256": "ed486a2a3b7c8e5fb854edf30833b02398e993d6c62d5b8852f6444bf51ae34d",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/README.md",
+      "sha256": "83ea07e36754b5f4973dc92252d53bf4c358c8e6d9f1509c1e3449c095b6df12",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/console/index.html",
+      "sha256": "b3c9939a1ec9b9060ce3bb8b24e351e16e7070f1466d8f7b5aa1221b4e9c7bd1",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/console/package.json",
+      "sha256": "b25f396fe28861967422b0cd2341d54e4f3db9c225972c6dbf6aa62e2a39e692",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/console/src/App.tsx",
+      "sha256": "160b6781db9acb8afb26d85074cce014b288667849a9c848769a13fa516277ca",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/console/src/lib/locales.ts",
+      "sha256": "d4f1b2e70edc62f6e294b16c8ad6b6b00b6afc543b1bd4dfb3f22db3152001df",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/docker-compose.local.yml",
+      "sha256": "59d6053d729c3d1e7389925c9435f2f9e200e422c0a23a0211d710d6109a2bf8",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/__init__.py",
+      "sha256": "485f8880fa2cef6660327b7bee6adddb134603907a7c065a8a7059dee6b19039",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/__main__.py",
+      "sha256": "d9f3ee653627612dc510ca847138877cd42b743f1d240c4125bddc191cc47c4e",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/api.py",
+      "sha256": "cdaeaf5d8e38a52a9a0059ab63fa2b7313a6eb996e70e8501866cf328bd63cd2",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/admin/admin.js",
+      "sha256": "1b3f25cc11a75217b97557dead4f6d6d40138b7c393ad13710c597d2e9b2742f",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/admin/index.html",
+      "sha256": "f903a0ff4c1cae21de30d4efb94a79ecea4ad24dc681c44a382d1018b00a8448",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/app.css",
+      "sha256": "1f3eaffb8a4a11c2b8179cb0af7e213a6874c7987d6cbd78026cd48772035d51",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/app.js",
+      "sha256": "4b91b50a70069d75907c5dbe83f105b8babc9c9876644dc54050957c631832e5",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/index.html",
+      "sha256": "49e690964bf9c5b117f87a43a5de96803e30518c6930b8fd134d2dbb75d7e3ec",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/senders.py",
+      "sha256": "d18b0d208d3529597b8334700a5a647a8285cf9e460e35f48239eef4bc6dce33",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/service.py",
+      "sha256": "35c01c7db90fdf9c72357acc8b976592e6c9d2fb251742bd98ea328900a2f6ff",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "cloud/pyproject.toml",
+      "sha256": "17edff4bd422ace3a110fa43d9986fed7b9aa1aa3ecbfba7b20e42396b812928",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/README.md",
+      "sha256": "43bbf7da3ada71283efb43c6ffb26944b2e99d071327108a332ff33c6f7dd5f4",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/desktop/src/proxy.ts",
+      "sha256": "995f044a16dd30237aeccf8c93d441eac360bc9d17b35c12e3ea9c5c95ad0646",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/AllowanceWays.tsx",
+      "sha256": "a181841913c4db8bbd96f1c6e86d5492e57363b74c88a109f33a2621ed9b18a8",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/AvatarStudio.tsx",
+      "sha256": "fc97b6d16c9d4cfa3acbeaf4618d1bb3b8774b862a10921b7eff653f75022d0f",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/CloudSection.tsx",
+      "sha256": "eeefb8713f5724832b9c779c088ce394cf949bc402bd4e9688b91940528ec738",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Invite.tsx",
+      "sha256": "c3539c44a6db35e73d934af4944f2675656ae44d04b261ee3654b9b17dd34bcd",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/MediaSection.tsx",
+      "sha256": "fdb836bf8766a6a73f5ecf5c5846d2abb616cbe9494015eea2c366677cbb1c7e",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Network.tsx",
+      "sha256": "6e6acceff6804483a37f1293768b7bc00129535a488429ed99d401b470e33297",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/OwnKey.tsx",
+      "sha256": "de3ffb0bfc2d8c2a6be95cc67be013e65777b562f147d33f86de8db662f63b41",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/RefusalCard.tsx",
+      "sha256": "ff785dc1f105a1885d14d7a10d746b22ada1857a2171a38fca36be2d3c17379f",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/cloud.ts",
+      "sha256": "bf65c777a59d0c3330a20cc35d4985f27f1daee68580e540f9a6e17862626ffd",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged; delegated sessions use the renamed Pilot preset"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/images.ts",
+      "sha256": "ec557abbab341170a73d089bc4389a1b5d8e999f1ab7136ec410300c5bee108e",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/motion.ts",
+      "sha256": "d3c7be7dfe4d6cae7fd1e7137739ce196bf21145440e0c720dbaeea7986a1e80",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/providers.ts",
+      "sha256": "fd48b925a7219ce9b2b87a2401e0efb00f483bd6532955ef364b1d6542bf3c71",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/reach.ts",
+      "sha256": "c610d0d456b2adc85f2ffac6d50846c6f33f35d7461328de641250ba5bc87962",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/refusals.ts",
+      "sha256": "2c9bec71d97bccb02a1a8936b273ec19145b16e856cbccfc8da8cb3ae1fc9855",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/relay.ts",
+      "sha256": "ee191b7e140738accaa8d5bc00a3add738fe49f848cfbf6eab73659e1df58110",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/video.ts",
+      "sha256": "23ea18bfa7034f300d1e9e6f35ca68808cbf75bc13087eebc285a39926136eb0",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/cloud-models.test.mjs",
+      "sha256": "8f4c8c67fb9bf4f0d6db549d0327b512e1ede141c969e52393a29833c6191c83",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/cloud-off.test.mjs",
+      "sha256": "524310cf5419209d4ab33787e3bc7a7003096ff73d1870c1b07860a830522a7f",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/failure-text.test.mjs",
+      "sha256": "826e5b71e8cb0161a2e8b68b4c7d85b1662621b737bb42186cd8764d92fba19d",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/model-list.test.mjs",
+      "sha256": "e643b1b1521651fc1123e89334af9691853277d56deece767b9ea8b3b671e8db",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/motion.test.mjs",
+      "sha256": "ff261e8ee2c2d022426a84ddd081c9e3e95f08994f99be8d6ef5347638124b55",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/refusal-card.test.mjs",
+      "sha256": "19a6e1972d7d8c766eb551f93bc469e2865273f6a6f62ddae2f765f66ce21169",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/refusals.test.mjs",
+      "sha256": "f4c2903af9cbab19d247fdd6feed6e06f3042d589b475ec594e244cb37238249",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+    },
+    {
+      "path": "harness/desktop/resources/loading.html",
+      "sha256": "3fdf291fe9033a74b940148d8cd22322ebc7565a1544003539a9b823325c6282",
+      "reason": "Startup splash uses the Pilot mark and the name Pilot"
     }
   ],
   "versions": {

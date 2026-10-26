@@ -2,9 +2,12 @@
 import { createElement as h, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { Translate } from './api.ts'
-import { useSyncList, type UseSessionList, type UseStatusMap } from './MuseChats.tsx'
+import { useSyncList, type UseSessionList, type UseStatusMap, type UseWorkspaceList } from './MuseChats.tsx'
 import { IconClose, IconPlus } from './icons.tsx'
+import { readProjectIds, projectSessions } from './pilot-projects.ts'
+import { mainCandidates, readStoredMain, resolveMainSessionId, sessionRowLabel } from './pilot-session-label.ts'
 import { readTabs, reduceTabs, TABS_KEY, type CloseTabs, type SessionTabsState, type TabsAction } from './pilot-tabs-state.ts'
+import { useRooms } from './rooms.ts'
 
 let saved: string | null = null
 try { saved = window.localStorage.getItem(TABS_KEY) } catch { /* memory-only navigation */ }
@@ -22,10 +25,10 @@ const subscribe = (listener: () => void) => { listeners.add(listener); return ()
 const snapshot = () => state
 
 interface TabActions { openSession(id: string): void; startSession(): void }
-interface Props { t: Translate; useSessions: UseSessionList; useSessionStatus?: UseStatusMap | undefined; actions: TabActions }
+interface Props { t: Translate; useSessions: UseSessionList; useSessionStatus?: UseStatusMap | undefined; useWorkspaces?: UseWorkspaceList | undefined; actions: TabActions }
 interface Menu { id: string; x: number; y: number }
 
-export function PilotSessionTabs({ t, useSessions, useSessionStatus, actions }: Props): ReactNode {
+export function PilotSessionTabs({ t, useSessions, useSessionStatus, useWorkspaces, actions }: Props): ReactNode {
   const sessions = useSessions((s) => s)
   const sync = useSyncList()
   const tabs = useSyncExternalStore(subscribe, snapshot, snapshot)
@@ -66,6 +69,10 @@ export function PilotSessionTabs({ t, useSessions, useSessionStatus, actions }: 
     strip.current?.querySelector<HTMLElement>('[aria-selected=true]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }, [tabs.active])
 
+  const rooms = useRooms()
+  const workspace = typeof useWorkspaces === 'function' ? useWorkspaces((value) => value) : undefined
+  const excluded = new Set<string>([...sync.foreign, ...rooms.batches, ...projectSessions(workspace?.items ?? [], readProjectIds(window.localStorage)), ...(workspace?.archivedSessionIds ?? [])])
+  const mainId = resolveMainSessionId(mainCandidates(Object.values(sessions.byId), excluded), sync.mainSession, readStoredMain(), current, sync.sessions)
   const activate = (id: string) => { openPilotTab(id); actions.openSession(id) }
   const close = (id: string, mode: CloseTabs) => {
     const before = state.active
@@ -100,7 +107,7 @@ export function PilotSessionTabs({ t, useSessions, useSessionStatus, actions }: 
       h('div', { ref: strip, className: 'pilot-session-tabs', role: 'tablist', 'aria-label': t('pilotTabsLabel') },
         tabs.ids.map((id) => {
           const session = sessions.byId[id]
-          const title = session?.displayTitle || t('chBlank')
+          const title = sessionRowLabel(session, { main: id === mainId, synced: sync.sessions.has(id), mainLabel: t('chMain'), blankLabel: t('chBlank') })
           const status = statuses.get(id)
           const running = status?.running ?? session?.running
           const waiting = status?.pendingInteraction !== undefined
@@ -136,9 +143,12 @@ export function PilotSessionTabs({ t, useSessions, useSessionStatus, actions }: 
 const TAB_STYLES = `
 .pilot-conversation-header { width: 100%; min-width: 0; --pilot-tabs-titlebar-height: max(40px, env(titlebar-area-height, 40px)); --pilot-tabs-caption-inset: 0px; }
 html[data-nm-platform='win32']:not([data-nm-fullscreen]) .pilot-conversation-header { --pilot-tabs-caption-inset: max(138px, var(--nm-caption-inset, 138px)); }
-/* Keep native scrolling interactive; only the unused titlebar tail is draggable. */
+/* Keep native scrolling interactive; only the unused titlebar tail is draggable.
+   Windows paints an opaque 40px caption overlay above this row, which hides a border
+   inside that band under minimize/maximize/close. The extra pixel keeps the divider
+   just below the overlay, across the full width. */
 .pilot-session-tabs-shell { width: 100%; min-width: 0; }
-.pilot-session-tabs-row { display: flex; min-width: 0; height: var(--pilot-tabs-titlebar-height); box-sizing: border-box; align-items: stretch; padding: 0 calc(var(--pilot-tabs-caption-inset) + 128px) 0 8px; border-bottom: 1px solid var(--nm-border, #e5e5e2); background: var(--dsw-alias-bg-base); -webkit-app-region: drag; }
+.pilot-session-tabs-row { display: flex; min-width: 0; height: calc(var(--pilot-tabs-titlebar-height) + 1px); box-sizing: border-box; align-items: stretch; padding: 0 calc(var(--pilot-tabs-caption-inset) + 128px) 0 8px; border-bottom: 1px solid var(--nm-border, #e5e5e2); background: var(--dsw-alias-bg-base); -webkit-app-region: drag; }
 .pilot-session-tabs { display: flex; flex: 0 1 auto; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: thin; gap: 3px; align-items: stretch; -webkit-app-region: no-drag; }
 .pilot-session-tab { display: flex; position: relative; flex: 0 0 auto; max-width: 220px; min-width: 112px; align-items: center; margin: 4px 0 0; border: 1px solid transparent; border-radius: 7px 7px 0 0; color: var(--dsw-alias-label-secondary); -webkit-app-region: no-drag; }
 .pilot-session-tab:hover { background: var(--nm-hover, #f2f2ef); }

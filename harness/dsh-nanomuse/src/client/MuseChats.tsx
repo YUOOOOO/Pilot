@@ -19,6 +19,7 @@ import { call, type Translate } from './api.ts'
 import { IconMore, IconPlus, IconSearch, IconFolder } from './icons.tsx'
 import { LIST_MENU_STYLES, NewSessionIcon, ProjectActions, SortIcon, SortMenu, useNavigationPreferences } from './PilotListMenus.tsx'
 import { sortSessions } from './pilot-list-preferences.ts'
+import { resolveMainSessionId, sessionRowLabel } from './pilot-session-label.ts'
 import { roomsCall } from './rooms.ts'
 import { composing } from './keys.ts'
 import { useLive } from './live.ts'
@@ -297,12 +298,7 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
   // The main chat: the one the account's main conversation lives in (C8) while it exists, else
   // the remembered one, else the oldest, else the one on screen (a first session being created
   // becomes the main chat).
-  let mainId = sync.mainSession && mainCandidates.some((s) => s.id === sync.mainSession) ? sync.mainSession : undefined
-  if (!mainId) mainId = mainStored && mainCandidates.some((s) => s.id === mainStored) ? mainStored : undefined
-  if (!mainId && mainCandidates.length > 0) {
-    const candidates = mainCandidates.filter((s) => !s.blank || s.id === current || sync.sessions.has(s.id))
-    mainId = [...candidates].sort((a, b) => a.updatedAt - b.updatedAt)[0]?.id ?? mainCandidates[0]!.id
-  }
+  const mainId = resolveMainSessionId(mainCandidates, sync.mainSession, mainStored, current, sync.sessions)
   useEffect(() => {
     if (state.phase !== 'ready') return
     if (mainId !== mainStored) { writeMain(mainId); setMainStored(mainId) }
@@ -361,7 +357,7 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
             key: chat.id,
             t,
             chat,
-            label: chat.blank && !sync.sessions.has(chat.id) ? t('chBlank') : chat.displayTitle || t('chBlank'),
+            label: sessionRowLabel(chat, { main: false, synced: sync.sessions.has(chat.id), mainLabel: t('chMain'), blankLabel: t('chBlank') }),
             main: false,
             archived: archivedSet.has(chat.id),
             pinned: pinnedSet.has(chat.id),
@@ -386,5 +382,5 @@ export function MuseChats({ t, useSessions, useSessionStatus, useWorkspaces, act
             ...(actions.startProjectSession?{newSession:()=>actions.startProjectSession!(project.workspaceId)}:{}),
           })),
         !folded.has(project.workspaceId) ? h('div', { className: 'pilot-project-sessions' },
-          sortSessions(visible.filter((chat) => project.sessionIds.includes(chat.id) && (q === '' || chat.displayTitle.toLowerCase().includes(q))),preferences.sort,createdAt,pinnedSet).map((chat) => h(ChatRow, { key: chat.id, t, chat, label: chat.displayTitle || t('chBlank'), main: false, archived: archivedSet.has(chat.id), pinned: pinnedSet.has(chat.id), selected: current === chat.id, useSessionStatus, actions }))) : null))))
+          sortSessions(visible.filter((chat) => project.sessionIds.includes(chat.id) && (q === '' || chat.displayTitle.toLowerCase().includes(q))),preferences.sort,createdAt,pinnedSet).map((chat) => h(ChatRow, { key: chat.id, t, chat, label: sessionRowLabel(chat, { main: false, synced: true, mainLabel: t('chMain'), blankLabel: t('chBlank') }), main: false, archived: archivedSet.has(chat.id), pinned: pinnedSet.has(chat.id), selected: current === chat.id, useSessionStatus, actions }))) : null))))
 }

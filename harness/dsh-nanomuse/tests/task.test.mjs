@@ -116,7 +116,7 @@ test('a task opens a named session, streams the run and resolves with the answer
   const call = fakeCall('c1')
   const p = r.task({ text: 'what time is it' }, call)
   await tick()
-  assert.deepEqual(h.ctx.sessionController.created, [{ agentPreset: 'nanomuse' }])
+  assert.deepEqual(h.ctx.sessionController.created, [{ agentPreset: 'pilot' }])
   assert.deepEqual(h.ctx.sessionController.renamed, [{ sessionId: 'session-1', title: 'From Phone' }])
   const agent = h.agents.get('session-1')
   assert.equal(agent.sent.length, 1)

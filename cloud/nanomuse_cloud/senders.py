@@ -108,10 +108,10 @@ def compose_notice_mail(sender: str, to: str, subject: str, lines: list[str]) ->
     msg = EmailMessage()
     msg["From"] = sender if "<" in sender else f"nanoMuse <{sender}>"
     msg["To"] = to
-    msg["Subject"] = f"nanoMuse Cloud · {subject}"
+    msg["Subject"] = f"PilotCloud · {subject}"
     msg["Auto-Submitted"] = "auto-generated"
     msg["X-Auto-Response-Suppress"] = "All"
-    msg.set_content("\n".join(lines) + "\n\nnanoMuse Cloud · automated, no reply / 自动发送，请勿回复\n")
+    msg.set_content("\n".join(lines) + "\n\nPilotCloud · automated, no reply / 自动发送，请勿回复\n")
     return msg
 
 

@@ -1,5 +1,5 @@
 /**
- * Settings → nanoMuse Cloud: sign in with a code, see the account, the look it
+ * Settings → PilotCloud: sign in with a code, see the account, the look it
  * gives the agent, this computer and the other devices on the hub, sign out.
  * Talks to the host half over the loopback API (`/nanomuse/cloud/*`) and reads
  * the live state the host streams.

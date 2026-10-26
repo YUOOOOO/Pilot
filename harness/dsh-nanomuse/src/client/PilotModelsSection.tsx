@@ -18,7 +18,7 @@ export function makePilotModelsSection(t: Translate) {
     const [tab, setTab] = useState<ModelTab>(advanced ? 'advanced' : 'providers')
     const [visited, setVisited] = useState<Set<ModelTab>>(() => new Set([advanced ? 'advanced' : 'providers']))
     const id = useId()
-    const tabs: { id: ModelTab; label: string }[] = [{ id: 'providers', label: t('pilotModelsProviders') }, { id: 'usage', label: t('pilotModelsUsage') }, { id: 'advanced', label: t('pilotModelsAdvanced') }]
+    const tabs: { id: ModelTab; label: string }[] = [{ id: 'advanced', label: t('pilotModelsAdvanced') }, { id: 'providers', label: t('pilotModelsProviders') }, { id: 'usage', label: t('pilotModelsUsage') }]
     const activate = (next: ModelTab) => { setVisited(before => new Set([...before, next])); setTab(next) }
     return h('div', { className: 'pilot-models' },
       h('style', null, MODEL_TABS_STYLES),

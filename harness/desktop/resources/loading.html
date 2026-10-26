@@ -3,12 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self' file: data:">
-<title>nanoMuse</title>
+<title>Pilot</title>
 <style>
-  /* The splash: the nanoMuse logo (logo.png — the N mark on its white tile, docs/brand.md)
-     inside a quiet loading ring, the wordmark, one line of status. No character and no face
-     here — the logo is the app's, whoever the agent looks like. The error state keeps the
-     layout and shows what went wrong. */
+  /* The splash: the Pilot mark (pilot-icon.png) inside a quiet loading ring, the wordmark,
+     one line of status. The error state keeps the layout and shows what went wrong. */
   :root { color-scheme: light dark; --fg: #1b1b1f; --muted: #6b6f76; --bg: #f9f9f9; --err: #b3261e; --ring: #0064d4; --track: rgba(127,127,127,0.18); }
   @media (prefers-color-scheme: dark) { :root { --fg: #f1f1f4; --muted: #9a9ea6; --bg: #171717; --ring: #5aa2ff; --track: rgba(255,255,255,0.14); } }
   html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg);
@@ -36,8 +34,8 @@
 </head>
 <body>
   <div class="card">
-    <div class="mark" aria-hidden="true"><span class="ring"></span><img src="logo.png" alt=""></div>
-    <h1>nanoMuse</h1>
+    <div class="mark" aria-hidden="true"><span class="ring"></span><img src="pilot-icon.png" alt=""></div>
+    <h1>Pilot</h1>
     <p id="line" role="status"></p>
     <p id="slow" class="slow"></p>
     <pre id="tail" class="tail"></pre>
