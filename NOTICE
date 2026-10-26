@@ -1,0 +1,27 @@
+Pilot
+
+Pilot includes selected core execution components from nanoMuse and uses
+DeepSeek Harness as a dependency. Pilot's initial desktop interface and
+local project navigation are adapted; complete project execution and
+cross-device behavior remain under development.
+The pinned nanoMuse Cloud relay, authentication, device hub, synchronization,
+console and tests are also included, with separate Pilot launch/deployment
+adapters. Public server deployment and full real-device execution acceptance
+remain pending; see docs/RELAY.md.
+
+nanoMuse source: https://github.com/nano-muse/nanoMuse
+Imported baseline: 010e886822ce95a70df55a4d4c4a67b2e333cb66
+
+nanoMuse Copyright (C) 2026 nanoMuse contributors
+The imported source retains its original copyright and license notices.
+The root LICENSE text is copied unchanged from the baseline. The complete
+upstream NOTICE is preserved at docs/upstream/nanomuse-NOTICE.txt, and its
+THIRD_PARTY_NOTICES.md is preserved at the project root. It describes some
+upstream components not included in this extraction.
+
+See docs/UPSTREAM.md and docs/upstream/files.json for the selected files,
+their original paths, the fixed commit, SHA256 hashes, and local changes.
+
+Pilot is a separate project. It does not claim official affiliation with
+nanoMuse, DeepSeek Harness, or Pi. Third-party components retain their own
+copyright notices and license terms.

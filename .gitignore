@@ -1,0 +1,67 @@
+# Local credentials and configuration
+.env
+.env.*
+!.env.example
+config/config.toml
+cloud/.env
+*.pem
+*.key
+id_ed25519*
+id_rsa*
+
+# Local runtime/user data
+.pilot/
+.pilot-data/
+.dsh/
+.nanomuse/
+logs/
+*.log
+*.sqlite
+*.sqlite3
+*.sqlite-wal
+*.sqlite-shm
+cloud/data/
+*.db
+*.db-wal
+*.db-shm
+
+# JavaScript / Electron build outputs
+node_modules/
+.pnpm-store/
+dist/
+out/
+coverage/
+*.tsbuildinfo
+
+# Extracted upstream generated artifacts (keep source and committed static assets)
+/harness/dsh-nanomuse/lib/
+/harness/desktop/dsh/
+/harness/desktop/runtime/
+/harness/desktop/nsis-check/
+/harness/desktop/mac/computer-use/build/
+/build/
+*.egg-info/
+
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Platform outputs
+.gradle/
+.build/
+DerivedData/
+*.apk
+*.aab
+*.ipa
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+Desktop.ini

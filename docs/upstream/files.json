@@ -1,0 +1,3297 @@
+{
+  "schemaVersion": 1,
+  "repository": "https://github.com/nano-muse/nanoMuse",
+  "commit": "010e886822ce95a70df55a4d4c4a67b2e333cb66",
+  "archiveSha256": "4c87ad67e3412f91a8dd16c5ab5c0d5921c074f3c58b62ea407173872d348868",
+  "license": "GPL-3.0-or-later; embedded third-party terms retained, see THIRD_PARTY_NOTICES.md",
+  "localSourceChanges": [
+    {
+      "path": "harness/desktop/src/main.ts",
+      "sha256": "be29b8fe457265213496678bc1783933a8737910f7a1b8b3644f050277fa860d",
+      "reason": "Pilot window title and shared window/tray icon, Pilot tray tooltip; remove peripheral menu entries and preserve protected exit"
+    },
+    {
+      "path": "harness/desktop/electron-builder.yml",
+      "sha256": "9fe340be4ff79a5eb89fff330d51d9860f21e6c3132e90a6efa18264b585aafe",
+      "reason": "Windows application executable uses the matching multi-resolution Pilot ICO; packaging not run"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/MuseSidebar.tsx",
+      "sha256": "473eb0ca0e7f2f4bbf2db3957bbd184c3e1208b68575d1b6fe24ecf22d28814b",
+      "reason": "Pilot navigation, drag-collapse, removed peripheral entries and bottom-menu shortcuts entry; unified new-session icon"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/MuseChats.tsx",
+      "sha256": "bc44d170945d4b5c6077e2e0c64576c69cf8a21a12b500a0aaf2ed2c7ebc9f14",
+      "reason": "Pilot project grouping and list menus; retain blank/archived sessions, explicit restore and empty hint; fixed nexo main row with personal-document menu and no rename"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/MuseHeader.tsx",
+      "sha256": "a19c546805aa10f5470eb8d90618a871aafbd359fad8bf76b686be9d05ebbd62",
+      "reason": "Compact Pilot status header without avatar or promotion"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Onboarding.tsx",
+      "sha256": "ee084a0f41a5d2718a3177870230ed4dc3aa43780e4a568a578e976b236a3e53",
+      "reason": "Defer UI setup without changing model readiness or permissions"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/index.ts",
+      "sha256": "5a7c8aa255cca447fd01bb1237c17d1b3b0d12f73b76a31744278145a1087e9f",
+      "reason": "Pilot slots, per-session presets and model tabs; close personal-document editor when opening or creating a session"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/locales.ts",
+      "sha256": "e6479066b2f69ee7108f3e3faa7701ad8b6ca69dd586b0e96cab8a6df9ee646e",
+      "reason": "Pilot dictionaries including unified model tabs, restore, empty projects and fixed nexo main-conversation label"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Sections.tsx",
+      "sha256": "0d15b65be8e90fbdd97543c1e64deb5f6b9e6bb8babfbcda0209028605e2f5d6",
+      "reason": "Remove report-problem action and developer display switch while retaining settings and diagnostics"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/MuseSettings.tsx",
+      "sha256": "c8f60ac32b68cfa6976a6ead59308421112b24cab24af971c68479b92b928e20",
+      "reason": "Simplified settings navigation, permission drawers and parent renderer for unified model tabs"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/ModelsSection.tsx",
+      "sha256": "0b3d6ca1ceba3abc3dd2295517b0a5cbd4ccb6a8a14bd36df7f8926bf28d2df0",
+      "reason": "Reuse original four model assignment setters in tabs; refresh on activation and switch Add provider within the unified page"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Pages.tsx",
+      "sha256": "e2957851e50fdf0ebb1ae172e6cbd5e64bfb68f92484522e65e336315408a1fc",
+      "reason": "Permissions rows including Wallet and Secure storage open original in-page detail drawers; underlying services unchanged"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/rooms.ts",
+      "sha256": "ac6d3b70d1874afd0ec1bbab383f7ae113f46bf47cea8cecd6a2eadc6f6349e9",
+      "reason": "Guarded read-only creation-date route delegates to existing DSH inspect/list without activating agents"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/panels.ts",
+      "sha256": "885fe204205fc28f7770814b5393098696070a40f1c1e971f7e635351140077f",
+      "reason": "Pilot repository and issue URLs"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/locales.test.mjs",
+      "sha256": "6849ec849a7f7ef2d4c28e49c8a59ecc6996ed8a1c03ad422ea94d9afebca89d",
+      "reason": "Register nexo as an intentional fixed proper name in both dictionaries; retain all existing locale checks"
+    }
+  ],
+  "versions": {
+    "desktop": "1.0.6",
+    "bundle": "1.0.6",
+    "electron": "44.7.0",
+    "dsh": "0.2.0-rc.2"
+  },
+  "files": [
+    {
+      "path": "LICENSE",
+      "sourcePath": "LICENSE",
+      "sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+    },
+    {
+      "path": "THIRD_PARTY_NOTICES.md",
+      "sourcePath": "THIRD_PARTY_NOTICES.md",
+      "sha256": "30d920982b78acfb593f88125186417c5908ea26bdfb07eb88844e3dacbbb894"
+    },
+    {
+      "path": "android/src/android/app/src/main/assets/nanomuse/ideas.en.json",
+      "sourcePath": "android/src/android/app/src/main/assets/nanomuse/ideas.en.json",
+      "sha256": "8471bfb7df22c257ca6c2bafb23b16823b8edcaa24910e8e34898895e5b2f619"
+    },
+    {
+      "path": "android/src/android/app/src/main/assets/nanomuse/ideas.zh.json",
+      "sourcePath": "android/src/android/app/src/main/assets/nanomuse/ideas.zh.json",
+      "sha256": "3e8f1885deabdff8fdb4dda42b6e705f38efeabe698697a766f2fb6052c62ced"
+    },
+    {
+      "path": "android/src/ios/NanoMuse/Resources/ideas.en.json",
+      "sourcePath": "android/src/ios/NanoMuse/Resources/ideas.en.json",
+      "sha256": "8471bfb7df22c257ca6c2bafb23b16823b8edcaa24910e8e34898895e5b2f619"
+    },
+    {
+      "path": "android/src/ios/NanoMuse/Resources/ideas.zh.json",
+      "sourcePath": "android/src/ios/NanoMuse/Resources/ideas.zh.json",
+      "sha256": "3e8f1885deabdff8fdb4dda42b6e705f38efeabe698697a766f2fb6052c62ced"
+    },
+    {
+      "path": "config/config.example.toml",
+      "sourcePath": "config/config.example.toml",
+      "sha256": "a892fe89c02add1ac555391d55524fae92287783e7851aa22008530341a28d88"
+    },
+    {
+      "path": "docs/upstream/desktop-app.workflow.yml",
+      "sourcePath": ".github/workflows/desktop-app.yml",
+      "sha256": "2a850c0094371bd5106c4f29be4a6e5693ae2b2e8d635a7fb27f0e72de92cfc1"
+    },
+    {
+      "path": "docs/upstream/nanomuse-NOTICE.txt",
+      "sourcePath": "NOTICE",
+      "sha256": "8a203dde64c0abd314f876cb6516810878fc0e3120eacd5bfd2da932b4d4a439"
+    },
+    {
+      "path": "docs/upstream/nanomuse-README.md",
+      "sourcePath": "README.md",
+      "sha256": "bb65d085528ad480e18728ad5d9b344486812e5927128ea100d62d433de34675"
+    },
+    {
+      "path": "harness/README.md",
+      "sourcePath": "harness/README.md",
+      "sha256": "a6165078d29d3fc94d7262fdcfe4b70898dcdb66caade2d934fd4da885df273d"
+    },
+    {
+      "path": "harness/desktop/.gitignore",
+      "sourcePath": "harness/desktop/.gitignore",
+      "sha256": "3cc5ef2a666001892e2aac008a2bba641ef94352d7c658d3982cc92b34f1ffab"
+    },
+    {
+      "path": "harness/desktop/electron-builder.yml",
+      "sourcePath": "harness/desktop/electron-builder.yml",
+      "sha256": "8bb365e279815985e6020dac620aba8e35cdf2955305124a69be4bbfb91a0c18"
+    },
+    {
+      "path": "harness/desktop/mac/computer-use/Info.plist",
+      "sourcePath": "harness/desktop/mac/computer-use/Info.plist",
+      "sha256": "feda066da99cc2ee502ab51fd07c948aba1f205559f11f9b0c585c2d4ddd1307"
+    },
+    {
+      "path": "harness/desktop/mac/computer-use/Sources/HTTPServer.swift",
+      "sourcePath": "harness/desktop/mac/computer-use/Sources/HTTPServer.swift",
+      "sha256": "27df7e5eea8a7577b461b20525722ae20d2ae0b8cac10e76f07e107a3513e7b0"
+    },
+    {
+      "path": "harness/desktop/mac/computer-use/Sources/Input.swift",
+      "sourcePath": "harness/desktop/mac/computer-use/Sources/Input.swift",
+      "sha256": "1b7fb4561ffadb9fefbb3814344b8cd7c0f1a62c300cbb0f8c8df0d69802ee88"
+    },
+    {
+      "path": "harness/desktop/mac/computer-use/Sources/Keys.swift",
+      "sourcePath": "harness/desktop/mac/computer-use/Sources/Keys.swift",
+      "sha256": "278e89915f7fea0b4987a60ac0a80e07cd5d6d9f1128ad4c3b8c7709390c3afb"
+    },
+    {
+      "path": "harness/desktop/mac/computer-use/Sources/Permissions.swift",
+      "sourcePath": "harness/desktop/mac/computer-use/Sources/Permissions.swift",
+      "sha256": "28dda1095517738e3d4a5453063a5d1b1c70906b21531d3a5cdd96a7f8c9871a"
+    },
+    {
+      "path": "harness/desktop/mac/computer-use/Sources/ScreenCapture.swift",
+      "sourcePath": "harness/desktop/mac/computer-use/Sources/ScreenCapture.swift",
+      "sha256": "aa546bf5ad22d137aa3f351bfff6a0f53e1e20de5298a4eb89435f1cf27d5f58"
+    },
+    {
+      "path": "harness/desktop/mac/computer-use/Sources/Screenshot.swift",
+      "sourcePath": "harness/desktop/mac/computer-use/Sources/Screenshot.swift",
+      "sha256": "0d93ad7f2be4fe13d2800f57e1075e1c455dd03e053c36b9775abb810badeb53"
+    },
+    {
+      "path": "harness/desktop/mac/computer-use/Sources/Service.swift",
+      "sourcePath": "harness/desktop/mac/computer-use/Sources/Service.swift",
+      "sha256": "8d8cd6f376442da96a26d132f4375fa41984b8fe61b44d479c14df2454cdebaa"
+    },
+    {
+      "path": "harness/desktop/mac/computer-use/Sources/main.swift",
+      "sourcePath": "harness/desktop/mac/computer-use/Sources/main.swift",
+      "sha256": "a1bcf77d23bd9e570fec62177cc359da1e6133142d682c24ee12ea81c31a55aa"
+    },
+    {
+      "path": "harness/desktop/mac/computer-use/build.sh",
+      "sourcePath": "harness/desktop/mac/computer-use/build.sh",
+      "sha256": "1a2cb386a798ad6f189f209fcefb40377af90c0b0c4ac9223a511ad7083603fd"
+    },
+    {
+      "path": "harness/desktop/package-lock.json",
+      "sourcePath": "harness/desktop/package-lock.json",
+      "sha256": "6ca098851f453979be93bd6b5feb48a29cc2333231158bc8ac504248b569081d"
+    },
+    {
+      "path": "harness/desktop/package.json",
+      "sourcePath": "harness/desktop/package.json",
+      "sha256": "b24bcf893a249f489af37f2ad3ef67e2ed2cce202d709d3b7cd1b2af8b694952"
+    },
+    {
+      "path": "harness/desktop/resources/app-icon.png",
+      "sourcePath": "harness/desktop/resources/app-icon.png",
+      "sha256": "3f93256201764047c07072853b4590037b8500bfc4c266deb5f048de74f648c1"
+    },
+    {
+      "path": "harness/desktop/resources/capsule.html",
+      "sourcePath": "harness/desktop/resources/capsule.html",
+      "sha256": "7f24338fdf1ff9aad8a51d984d8d9748b87d3fb547855c0739276fbf84e4a65c"
+    },
+    {
+      "path": "harness/desktop/resources/entitlements.mac.plist",
+      "sourcePath": "harness/desktop/resources/entitlements.mac.plist",
+      "sha256": "d620049a0f1662ed6fc45c2f1b980f7852b65c513161817954b8e6c807fd14cf"
+    },
+    {
+      "path": "harness/desktop/resources/glow.html",
+      "sourcePath": "harness/desktop/resources/glow.html",
+      "sha256": "d47e3d8b7ecaba2a4a9c6e3a4a3ab6c5c75243cb99240a0fccd6e872e2384741"
+    },
+    {
+      "path": "harness/desktop/resources/icons/128x128.png",
+      "sourcePath": "harness/desktop/resources/icons/128x128.png",
+      "sha256": "0a8ad6f04687cc88dd116f02a3333b18e537372a5922046f9aa9920f0ca4d784"
+    },
+    {
+      "path": "harness/desktop/resources/icons/16x16.png",
+      "sourcePath": "harness/desktop/resources/icons/16x16.png",
+      "sha256": "4166e559b9e34c0ba3a38f0e0117f68d7e92e1b73a31a3adfb91d14d25542c97"
+    },
+    {
+      "path": "harness/desktop/resources/icons/24x24.png",
+      "sourcePath": "harness/desktop/resources/icons/24x24.png",
+      "sha256": "a7997ea504643a99485c60f609c05b7e98e5b1fd172ef650b27f4aa5e816fb9f"
+    },
+    {
+      "path": "harness/desktop/resources/icons/256x256.png",
+      "sourcePath": "harness/desktop/resources/icons/256x256.png",
+      "sha256": "5abe9e160fe379b16bc47f3637eb6a53cec5564704d4cc6278b16f8f94dbecfc"
+    },
+    {
+      "path": "harness/desktop/resources/icons/32x32.png",
+      "sourcePath": "harness/desktop/resources/icons/32x32.png",
+      "sha256": "ac59f6f99786180b08bd342aaa84c7664da722aa791ae978ac816e99f7e73811"
+    },
+    {
+      "path": "harness/desktop/resources/icons/48x48.png",
+      "sourcePath": "harness/desktop/resources/icons/48x48.png",
+      "sha256": "913ac594da8f2af461b04df180aa346bbc8b3e56e5a7b3f097724de2ae1589e8"
+    },
+    {
+      "path": "harness/desktop/resources/icons/512x512.png",
+      "sourcePath": "harness/desktop/resources/icons/512x512.png",
+      "sha256": "9a03120562dd43262cf421ceca7d2eaea73fd86bc170d1a7f81cda27701ccf9a"
+    },
+    {
+      "path": "harness/desktop/resources/icons/64x64.png",
+      "sourcePath": "harness/desktop/resources/icons/64x64.png",
+      "sha256": "795ddc64a3a7c167199153d02f4cd0236d4f0d50faf91ca190d8c73a338481d3"
+    },
+    {
+      "path": "harness/desktop/resources/loading.html",
+      "sourcePath": "harness/desktop/resources/loading.html",
+      "sha256": "cfdbcd306458355ec30a10aeb79615ecfb188e42d612fd5b0361d8af096fbc19"
+    },
+    {
+      "path": "harness/desktop/resources/logo.png",
+      "sourcePath": "harness/desktop/resources/logo.png",
+      "sha256": "5a443f541c5fd6b777418277bda3f3a2bb426fac96506bc5eef15381a97aab9c"
+    },
+    {
+      "path": "harness/desktop/scripts/check-hooks.mjs",
+      "sourcePath": "harness/desktop/scripts/check-hooks.mjs",
+      "sha256": "7c74d2dc7f97a04336f62463da8b44de1ca95f920cbf96867e5160d361444e36"
+    },
+    {
+      "path": "harness/desktop/scripts/prepare-dsh.mjs",
+      "sourcePath": "harness/desktop/scripts/prepare-dsh.mjs",
+      "sha256": "2e17418c08a95e6e1f8e21e28b6433823ac8378156e1cae402055de32b89255d"
+    },
+    {
+      "path": "harness/desktop/scripts/smoke.mjs",
+      "sourcePath": "harness/desktop/scripts/smoke.mjs",
+      "sha256": "a0f0ed4281c47d559841ce4070b9cca18d5cebea2ac3e8338f158c05a8823307"
+    },
+    {
+      "path": "harness/desktop/scripts/update-feed-check.mjs",
+      "sourcePath": "harness/desktop/scripts/update-feed-check.mjs",
+      "sha256": "1a26a4cec4b9d2fd1423812e7a707f1d32681f99922fb5d825935fa4e3933b20"
+    },
+    {
+      "path": "harness/desktop/src/glow.ts",
+      "sourcePath": "harness/desktop/src/glow.ts",
+      "sha256": "1ef597e4ab50fe064ecb30b1a75c1b8db962620f443c9296feb50e860d75aca2"
+    },
+    {
+      "path": "harness/desktop/src/host-start.ts",
+      "sourcePath": "harness/desktop/src/host-start.ts",
+      "sha256": "63ee74b3acfe54de4c3b38681f7b8c5507d64e9dd2b5615176b67e663739d989"
+    },
+    {
+      "path": "harness/desktop/src/host-work.ts",
+      "sourcePath": "harness/desktop/src/host-work.ts",
+      "sha256": "c31a1914f9b99667b292aed22dc99d34a17bd6f58b281a08cf2e444768f3a08b"
+    },
+    {
+      "path": "harness/desktop/src/mac-helper.ts",
+      "sourcePath": "harness/desktop/src/mac-helper.ts",
+      "sha256": "40ab8a8ef1927ca56a1afcecb90f0f5c2c2441be8a77b63d1ff654f0bbe483f5"
+    },
+    {
+      "path": "harness/desktop/src/mac-permissions.ts",
+      "sourcePath": "harness/desktop/src/mac-permissions.ts",
+      "sha256": "52fca697c440bd1363e90c8a79f83c650d4f9ffb1dd5c469b9fe839025c8e8a0"
+    },
+    {
+      "path": "harness/desktop/src/main.ts",
+      "sourcePath": "harness/desktop/src/main.ts",
+      "sha256": "f8033f6fff56cddd3cfa9f9fa57ea6da65ae11fdaf328e380738d7d3e3204df7"
+    },
+    {
+      "path": "harness/desktop/src/navigation.ts",
+      "sourcePath": "harness/desktop/src/navigation.ts",
+      "sha256": "c7c7e541a7d2b52adb21a57e639e2fe9534d48b837b96fcea07282952a047970"
+    },
+    {
+      "path": "harness/desktop/src/operator-server.ts",
+      "sourcePath": "harness/desktop/src/operator-server.ts",
+      "sha256": "3ec240536a0e0c0ca164d793375c82130b9d8febe65b200421dafeb8eafda452"
+    },
+    {
+      "path": "harness/desktop/src/operator.ts",
+      "sourcePath": "harness/desktop/src/operator.ts",
+      "sha256": "e57fd39b3c767b8e27ac7ca50713aa42bafc09e47d0b0a500e957b6de0d6e495"
+    },
+    {
+      "path": "harness/desktop/src/overlay-preload.ts",
+      "sourcePath": "harness/desktop/src/overlay-preload.ts",
+      "sha256": "bc018e96e5725ca10ec924dfd880e49f4060c573e2600cc48f37163c02332149"
+    },
+    {
+      "path": "harness/desktop/src/preload.ts",
+      "sourcePath": "harness/desktop/src/preload.ts",
+      "sha256": "4d7674da62c317fcb3c310cd5fe5dbb65f69bd92cdccff29b661f519a898d18c"
+    },
+    {
+      "path": "harness/desktop/src/private-json.ts",
+      "sourcePath": "harness/desktop/src/private-json.ts",
+      "sha256": "fdef984ff59dc91e71a0baed14c348163814d92ef0d408e319c83955ceff0ea3"
+    },
+    {
+      "path": "harness/desktop/src/profile-link.ts",
+      "sourcePath": "harness/desktop/src/profile-link.ts",
+      "sha256": "854c88b6d5c6f190ffff753ee089f4188f981a17a273f0ee5eb8154486d31d36"
+    },
+    {
+      "path": "harness/desktop/src/protected-exit.ts",
+      "sourcePath": "harness/desktop/src/protected-exit.ts",
+      "sha256": "ea4de751862cc7bfc697203970a822c0f60dd5d3bd5979e4b0797a2b8c5ffde8"
+    },
+    {
+      "path": "harness/desktop/src/proxy.ts",
+      "sourcePath": "harness/desktop/src/proxy.ts",
+      "sha256": "022861f84881772e3500da7964d077ef1a0a8834ad6917ee0a1a436d113fc37c"
+    },
+    {
+      "path": "harness/desktop/src/windows-network-cost.ts",
+      "sourcePath": "harness/desktop/src/windows-network-cost.ts",
+      "sha256": "e6f0bb874a9ac06f2e1fcd7385c074e2bc18bc5e5436add3fece9af8366a4831"
+    },
+    {
+      "path": "harness/desktop/src/windows-updates.ts",
+      "sourcePath": "harness/desktop/src/windows-updates.ts",
+      "sha256": "54454d8964b28c134c0cafea65b62cf399e3eb0fffeabe110efc0468b62556fa"
+    },
+    {
+      "path": "harness/desktop/tests/check-hooks.test.mjs",
+      "sourcePath": "harness/desktop/tests/check-hooks.test.mjs",
+      "sha256": "4c8a893d0a382c935c78d103abeb590099892d6297fa843d6275c8120c605b25"
+    },
+    {
+      "path": "harness/desktop/tests/glow.test.mjs",
+      "sourcePath": "harness/desktop/tests/glow.test.mjs",
+      "sha256": "5fa4f0fafe5b0bfd17ac9c6a1cc207b13460d8a16b7c7343e9f46068b85a09c1"
+    },
+    {
+      "path": "harness/desktop/tests/helpers/update-feed.mjs",
+      "sourcePath": "harness/desktop/tests/helpers/update-feed.mjs",
+      "sha256": "64adef50d4160933d3296745b6109d6ef86b6662df2fa91a949cdd746febf0ff"
+    },
+    {
+      "path": "harness/desktop/tests/host-start.test.mjs",
+      "sourcePath": "harness/desktop/tests/host-start.test.mjs",
+      "sha256": "cc053c43c9a4884cbe44c8eff239fa023cc5b10b4f0ed6ab1a4ee30a635f5dc3"
+    },
+    {
+      "path": "harness/desktop/tests/host-work.test.mjs",
+      "sourcePath": "harness/desktop/tests/host-work.test.mjs",
+      "sha256": "456e7b6e3a3f925f1bcb71adbd9aaa518dfbdd5bb529eba4b225b742fbdd090d"
+    },
+    {
+      "path": "harness/desktop/tests/installer.test.mjs",
+      "sourcePath": "harness/desktop/tests/installer.test.mjs",
+      "sha256": "c7871e2042e925bd46732350cf3077894e0df8845f75b34e7d1319d91d4a1f6f"
+    },
+    {
+      "path": "harness/desktop/tests/mac-helper.test.mjs",
+      "sourcePath": "harness/desktop/tests/mac-helper.test.mjs",
+      "sha256": "aad3c04d67d5a385ca129ada0c78d4aeeef66170e45eb76337fc74824406e417"
+    },
+    {
+      "path": "harness/desktop/tests/navigation.test.mjs",
+      "sourcePath": "harness/desktop/tests/navigation.test.mjs",
+      "sha256": "0e2a5c7cff06aae6d6c6e8bda94dbc3d61b316380d0fff6518c959eb6aae764f"
+    },
+    {
+      "path": "harness/desktop/tests/overlays.test.mjs",
+      "sourcePath": "harness/desktop/tests/overlays.test.mjs",
+      "sha256": "e7ffed955021cbe25e117535f6fd72fb0f1206c0f6e67dfd76421836589b66e1"
+    },
+    {
+      "path": "harness/desktop/tests/prepare-dsh.test.mjs",
+      "sourcePath": "harness/desktop/tests/prepare-dsh.test.mjs",
+      "sha256": "a7f238d651a06c402defc7e76a6ffaf3ecd504cca09ba37f805a62545a38fd51"
+    },
+    {
+      "path": "harness/desktop/tests/private-json.test.mjs",
+      "sourcePath": "harness/desktop/tests/private-json.test.mjs",
+      "sha256": "8ee7a3e9fd34947c85bbdfd6254380f6a383e702f6e0521adde4cf6b13c6f604"
+    },
+    {
+      "path": "harness/desktop/tests/profile-link.test.mjs",
+      "sourcePath": "harness/desktop/tests/profile-link.test.mjs",
+      "sha256": "8be0dc731033dfd924af320b92327c6c4bb820849f43627c254f12e3268d8d21"
+    },
+    {
+      "path": "harness/desktop/tests/protected-exit.test.mjs",
+      "sourcePath": "harness/desktop/tests/protected-exit.test.mjs",
+      "sha256": "5a9e618cc9c981510886875d5a41743523ffdcd65d86c5b69845e3eb60698746"
+    },
+    {
+      "path": "harness/desktop/tests/proxy.test.mjs",
+      "sourcePath": "harness/desktop/tests/proxy.test.mjs",
+      "sha256": "9093c36c329ebfcfd5d6ed8fb6f5f5eb8f65e6d70900b98c63cdde8e11c3ba69"
+    },
+    {
+      "path": "harness/desktop/tests/splash-history.test.mjs",
+      "sourcePath": "harness/desktop/tests/splash-history.test.mjs",
+      "sha256": "c1201d46ecd5ad3d5d19f5d06a07e6399732e26ac4973dad045daaca6e7b3064"
+    },
+    {
+      "path": "harness/desktop/tests/windows-download-policy.test.mjs",
+      "sourcePath": "harness/desktop/tests/windows-download-policy.test.mjs",
+      "sha256": "799d30fc00a243489ea3deee324f72154e2212832e7e31e6314629134eff819f"
+    },
+    {
+      "path": "harness/desktop/tests/windows-exit-paths.test.mjs",
+      "sourcePath": "harness/desktop/tests/windows-exit-paths.test.mjs",
+      "sha256": "7ad2b3fd301bfa7cd1ed8352dc0fe736add89ec00fd1153495e83d4ad4c675db"
+    },
+    {
+      "path": "harness/desktop/tests/windows-install-handoff.test.mjs",
+      "sourcePath": "harness/desktop/tests/windows-install-handoff.test.mjs",
+      "sha256": "3085978d84bbe8ffc8cc638e1690b4cbc9ebceb9540ea45ae4458f1838efc98a"
+    },
+    {
+      "path": "harness/desktop/tests/windows-update-feed.test.mjs",
+      "sourcePath": "harness/desktop/tests/windows-update-feed.test.mjs",
+      "sha256": "e0284f9858008feacf55122e8b4c63994553a543daeb378ccc90e6e81da3aadb"
+    },
+    {
+      "path": "harness/desktop/tests/windows-updates.test.mjs",
+      "sourcePath": "harness/desktop/tests/windows-updates.test.mjs",
+      "sha256": "0bcf8076b1b6d9ec1051700b8f40376a1d481ec49fef610d339071e8cf134572"
+    },
+    {
+      "path": "harness/desktop/tsconfig.json",
+      "sourcePath": "harness/desktop/tsconfig.json",
+      "sha256": "8c9a8c72249a54d1ce468baff9bb7ae79732c187a9243a5cc61dac1b5deb9a2c"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/dragon-error.webp",
+      "sourcePath": "harness/dsh-nanomuse/assets/dragon-error.webp",
+      "sha256": "f224bb524da23a5c8987a519601048b36b56c74357d2c28a7ea552482fa9d5a8"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/dragon-happy.mp4",
+      "sourcePath": "harness/dsh-nanomuse/assets/dragon-happy.mp4",
+      "sha256": "874944c40861398e70f5054bf79b20b1d2a9088b1dc66ddb9825b67618f8daa1"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/dragon-happy.webp",
+      "sourcePath": "harness/dsh-nanomuse/assets/dragon-happy.webp",
+      "sha256": "d415fb2914e9aecb22283c05f08fd603049153e507b1a5a1a9033634802b0a12"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/dragon-idle.mp4",
+      "sourcePath": "harness/dsh-nanomuse/assets/dragon-idle.mp4",
+      "sha256": "4ee8e884ff2903d2bbb4bd14a6815d9da29872269cd80772491bf69a0c559414"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/dragon-idle.webp",
+      "sourcePath": "harness/dsh-nanomuse/assets/dragon-idle.webp",
+      "sha256": "bf446ff38587e45a27bc4d7c21cbb4bf9e13a37ba4c05503a641a3b59c9176c2"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/dragon-waiting.mp4",
+      "sourcePath": "harness/dsh-nanomuse/assets/dragon-waiting.mp4",
+      "sha256": "50020813c7c6284558c913a9324f99b1fceda18e623261e2504af23aea2b5f87"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/dragon-waiting.webp",
+      "sourcePath": "harness/dsh-nanomuse/assets/dragon-waiting.webp",
+      "sha256": "03896560296d9859a012b728d359d5d8183b46f00dc0162bd1df6ff8639cc439"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/dragon-working.mp4",
+      "sourcePath": "harness/dsh-nanomuse/assets/dragon-working.mp4",
+      "sha256": "bc655ada641fb6ca8979db87d3f0f8ae7fc85dc829f8bb3b4f75b349077bd0d5"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/dragon-working.webp",
+      "sourcePath": "harness/dsh-nanomuse/assets/dragon-working.webp",
+      "sha256": "12a9bca4cd195d187694197f6e099aca49c927cf51dbf0320a6fcb3e100a0b4e"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/ideas.en.json",
+      "sourcePath": "harness/dsh-nanomuse/assets/ideas.en.json",
+      "sha256": "8471bfb7df22c257ca6c2bafb23b16823b8edcaa24910e8e34898895e5b2f619"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/ideas.zh.json",
+      "sourcePath": "harness/dsh-nanomuse/assets/ideas.zh.json",
+      "sha256": "3e8f1885deabdff8fdb4dda42b6e705f38efeabe698697a766f2fb6052c62ced"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/preset-copper-acorn.webp",
+      "sourcePath": "harness/dsh-nanomuse/assets/preset-copper-acorn.webp",
+      "sha256": "bdbb2551d67b78a7219e89113ed78d86a13baac2269841ad1259dc00c0ad1f20"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/preset-dusk-moth.webp",
+      "sourcePath": "harness/dsh-nanomuse/assets/preset-dusk-moth.webp",
+      "sha256": "128b0c09359997e32bf1973a6fe2050199dcb73b343dd03866c27ef060063075"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/preset-moss-courier.webp",
+      "sourcePath": "harness/dsh-nanomuse/assets/preset-moss-courier.webp",
+      "sha256": "ff02357b87ec118efacf06ef89c6032c2eb969f1f1e606c579481cc98c29df10"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/preset-tide-tinker.webp",
+      "sourcePath": "harness/dsh-nanomuse/assets/preset-tide-tinker.webp",
+      "sha256": "217fd0b460758b7b2b9f1a41d2157427079cd9d9257db86f30fffd87eadbef1e"
+    },
+    {
+      "path": "harness/dsh-nanomuse/assets/providers.json",
+      "sourcePath": "harness/dsh-nanomuse/assets/providers.json",
+      "sha256": "1aacd384e5a2f8af4fb65c156a237e3cdfc0b87c1dbef4065f1c82eb87484552"
+    },
+    {
+      "path": "harness/dsh-nanomuse/build.mjs",
+      "sourcePath": "harness/dsh-nanomuse/build.mjs",
+      "sha256": "6fde77e38f886b7b9e8f049b5d9f813840988ee51975f94a42345aec550c2d9f"
+    },
+    {
+      "path": "harness/dsh-nanomuse/cordis.patch.yml",
+      "sourcePath": "harness/dsh-nanomuse/cordis.patch.yml",
+      "sha256": "630ab02af787ac22bd35b9167d506c086c56614c6c8520f09f74d1576dafee78"
+    },
+    {
+      "path": "harness/dsh-nanomuse/package.json",
+      "sourcePath": "harness/dsh-nanomuse/package.json",
+      "sha256": "62c2112d8461089c499d386d250f6f2f0f6a7ada45e89ddaf9863e6f3c554945"
+    },
+    {
+      "path": "harness/dsh-nanomuse/pnpm-lock.yaml",
+      "sourcePath": "harness/dsh-nanomuse/pnpm-lock.yaml",
+      "sha256": "e40b36fead0cf4283cd44f3d2223d8160fd88c0fe2b6e595a533003384ed1281"
+    },
+    {
+      "path": "harness/dsh-nanomuse/pnpm-workspace.yaml",
+      "sourcePath": "harness/dsh-nanomuse/pnpm-workspace.yaml",
+      "sha256": "41792400bf53f628bb9899139f689665762a0a500b9be16ba35f47ee369e8fba"
+    },
+    {
+      "path": "harness/dsh-nanomuse/presets/nanomuse.patch.yml",
+      "sourcePath": "harness/dsh-nanomuse/presets/nanomuse.patch.yml",
+      "sha256": "e57ffa38c5eaf0ebbaf65f411e886fe0da8cb84ef61441a82ce2aa50dfc5108f"
+    },
+    {
+      "path": "harness/dsh-nanomuse/scripts/brand-marks.mjs",
+      "sourcePath": "harness/dsh-nanomuse/scripts/brand-marks.mjs",
+      "sha256": "ad332a68dd96bd9a7d5dd57a9288d306823a8a189c3075e60cf0500b564be06d"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/actions.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/actions.ts",
+      "sha256": "1ffc936611d0771084e45486178767dba4a23dccd329e6a2ea5ee37109d82d4a"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/admit.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/admit.ts",
+      "sha256": "7d1b96b98f1b5af16259ba8a8eab8c294227f6c44b9470022062df217badf6f4"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/avatar-flow.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/avatar-flow.ts",
+      "sha256": "453abcaff257f720010ff617431f010ab25bee8967b843ec2457d5efbc8be7d8"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/catalogue.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/catalogue.ts",
+      "sha256": "8cb716c9b519575841dc3e9f267a2a93971f046c4d21064b55853804e27a5eb4"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/About.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/About.tsx",
+      "sha256": "2d17ddd35a5e230b318265b43e1ed46defaa7564d4d5d829c8eb47a92a13d62d"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/AccountPage.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/AccountPage.tsx",
+      "sha256": "d648790ab46c27d2121cecadf1096b8a7613c04c073871711ddad5d62d0e963d"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/AllowanceWays.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/AllowanceWays.tsx",
+      "sha256": "75e737778b381a3f96fcc0c3cf69a9e0d231ee84de3cefe3127f88e3ad65cbf5"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Avatar.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/Avatar.tsx",
+      "sha256": "319fd66f666e261161ee9353ac98de3f3fac020f6889ec538a6391b7795313d6"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/AvatarChat.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/AvatarChat.tsx",
+      "sha256": "a3650115a482659f9e4dd88c3afab569129c81b0dbd84c3ff503ca6786d7fdc5"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/AvatarShare.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/AvatarShare.tsx",
+      "sha256": "af44bceeed6cb22b6a85e5ac475ee9775d1568a395d5d9d373e6c73e351adb39"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/AvatarStudio.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/AvatarStudio.tsx",
+      "sha256": "67d483cd59a2afa8e55e772769434b92f9dcc862ee6e55520f5f4ab4d02ca28f"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/BrandMark.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/BrandMark.tsx",
+      "sha256": "c8b6b9b376fc1f099c4cc28b98e4fd1ccdcd004e70ac8fdb3db84b71f862c5ca"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Capsule.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/Capsule.tsx",
+      "sha256": "f281f2f079c621362900fe64cf05d59cee5431df97383a1b14b2e9441d6e19bf"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/CloudSection.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/CloudSection.tsx",
+      "sha256": "4d5d80c8cbe39b6cbfa44a2d25cd4bd7e7646c3f77f89aa380f6eef1fb9c3aff"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/CodingPanel.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/CodingPanel.tsx",
+      "sha256": "0b1c226bec7ef76a1b55446ebd6283c52d659874ef51c71e30c82d687e65b4e8"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/ComposerExtras.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/ComposerExtras.tsx",
+      "sha256": "dd0206c2cdecc2d3c2b90ba6c284e23ba5dc616e3e506c5d4dbcdae2ec71062b"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Connectors.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/Connectors.tsx",
+      "sha256": "61182dae3c31cd6918fa30403b9eca060a600bd3dc05773172ddc779b1cef6c7"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/DevicesPanel.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/DevicesPanel.tsx",
+      "sha256": "a6e638aa0bfaac4294fb17cabded47d2a28a6a5a91b41f1888e03b2d7043747c"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/DocEditor.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/DocEditor.tsx",
+      "sha256": "0011db7a4376acc1054d6d632eea5acf04fb0806f3ccf10d15971dcb35f316a4"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/FeedPanel.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/FeedPanel.tsx",
+      "sha256": "b9080893372b35f86f52c0d2ac1e59e9ae7b5c7d785c1cbe7d30ce5a0ade305e"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/FenceCards.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/FenceCards.ts",
+      "sha256": "fc3681c4cab6f8d42a0ba9e4b1d58601b95175a6b57a515d1a4aeaf1ca7e21dd"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/FirstRun.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/FirstRun.tsx",
+      "sha256": "5acf429819579abb8efc17728d19a91ed4a40f1ef45824e1be5332e26fcbf1b0"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/GoalsPanel.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/GoalsPanel.tsx",
+      "sha256": "ec4bc94fcca7f35da41bab6d7695fd8aad593dca385441c92813176057c0c4c7"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/HandsCheck.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/HandsCheck.tsx",
+      "sha256": "c6e855e2fd9f9a3939ba9d0e1f0bea5a928af57084f97c629f015b1bf64d62c8"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/IdeasPanel.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/IdeasPanel.tsx",
+      "sha256": "bd3979e4c7e07934804c9a4a7537322cfd3c5ea946b5c14460130cb046442b55"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Invite.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/Invite.tsx",
+      "sha256": "dc4bca4d72e94786046f0cfe2bb873be5b85f69f75ebd571960a604f70af4a04"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/LibraryPanel.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/LibraryPanel.tsx",
+      "sha256": "07cb5ed230b2dc17b68fc184b819ba2130bebe2261637bd901dd223c82651313"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/MediaSection.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/MediaSection.tsx",
+      "sha256": "92f997fb8daefb555c46d67f7d8ee0c692ea08b01d436af9242eb305c6769367"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Memory.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/Memory.tsx",
+      "sha256": "6b931e883c4894314084814d44bc3d7ada3e4929710ccae8df49333a914bd894"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/ModelPicker.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/ModelPicker.tsx",
+      "sha256": "f5a19661ca722f2322f89af4bed572cf47f910848d05e8ecf73a4b49c0878ea3"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/ModelsSection.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/ModelsSection.tsx",
+      "sha256": "24767f83179a1524f81947a6ec0394f3222f7031397fe3e7b7048c9741c812ff"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/MuseChats.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/MuseChats.tsx",
+      "sha256": "dd95a731d00e06779d4d0b245424a1b618183983772568f766aac203a91c01d6"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/MuseHeader.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/MuseHeader.tsx",
+      "sha256": "c157a7fb38cc06e43070533888012897a35c74c44288df18a06cfb9d3ac5fbe8"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/MuseSettings.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/MuseSettings.tsx",
+      "sha256": "2ee89bb57eaeca2cdfe48b620bc13f230b8b6ccc1acccd0932fb900eb8ddc807"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/MuseSidebar.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/MuseSidebar.tsx",
+      "sha256": "6fc8c87ecd4e38013bf2e76090e401df1f3ba84a379d61e44ef0187119adac42"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/NamingCard.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/NamingCard.tsx",
+      "sha256": "cd9df2d0094a36d5b18bcea88ffb042a1f669a15143a7b8652feeb06366e0f08"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Network.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/Network.tsx",
+      "sha256": "bfbb374cd95683fe2d9ad00ea0d2495224c8d7b73c3eb3ab9210c2a9b2bffacf"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Onboarding.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/Onboarding.tsx",
+      "sha256": "23372feaa851f1254bc67243a7f181a061a9baee04bc67186cb6ec19a81bd7a9"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/OwnClipChooser.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/OwnClipChooser.tsx",
+      "sha256": "da37b4b0a25fbc6cbf7052ebe8f42c61426e35445ad016642e548fd6ee9dcf59"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/OwnKey.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/OwnKey.tsx",
+      "sha256": "6948a8976f84e05b34c56073bd967f451c1f2b4afd25185323dfe2180d8b9fc4"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Pages.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/Pages.tsx",
+      "sha256": "db0328ac2dddbb840366e759e12c2db4b983c998dedde143134ad838112cb3eb"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/ProfileDrawer.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/ProfileDrawer.tsx",
+      "sha256": "b589647c382f5afac875d6e428de38574530eae2ca4c70918bcc7b9c9ce08923"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/RefusalCard.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/RefusalCard.tsx",
+      "sha256": "319a7aac12771afd9f8721f191986e8a0e1db4ae1209dee7a8b4ba3e5e461ec5"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/RemoteBubbles.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/RemoteBubbles.ts",
+      "sha256": "cf818446adad420069013b4ca9a414c3a12ec27ee34966bbd6f9b924a0780b73"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/SearchModal.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/SearchModal.tsx",
+      "sha256": "ef98cc0528fd4c8c409f4f0ebceace7e525b9eb71ff63313d60acb9ad05edc81"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Sections.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/Sections.tsx",
+      "sha256": "32739830a8599673a05f256d0891eb67f03f7f3bc7271aba341adb7933f31fea"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/SignIn.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/SignIn.tsx",
+      "sha256": "de26ce96cb96ffa31483b30ec16a85a3f9ee0506b922c77b7de33a25d713e34f"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/TaskDetail.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/TaskDetail.tsx",
+      "sha256": "5012e715e00c14e3f2e22a4d3b0347f1190b25b3225f969ff807bd5c8ba3d53b"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/Trajectory.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/Trajectory.tsx",
+      "sha256": "c5a045fdb52c8f433355b57d8487dc5dc3e42da659b9b2d559b970d81b0674bd"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/api.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/api.ts",
+      "sha256": "b87f0b7b5ccaabd9efff9ab9b766ef2ab34cef3abe0b8f3a7c87f8e4514bb64d"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/brand-marks.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/brand-marks.ts",
+      "sha256": "ac5c25d9532bfc8d0610a6f709938947c3a33b4b3c5d667d60b54786268fa0dd"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/bridge.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/bridge.ts",
+      "sha256": "289583d3e8b0501e575cf44e701758bb2d04f46846fc55444762feb5d1f2b2be"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/bus.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/bus.ts",
+      "sha256": "81bb72bfc8c21532907428ece36eb54dd4d4a0e8d29a517a035b564409fb7b51"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/composer.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/composer.ts",
+      "sha256": "3183b68794dc2f75a92dde4c30f528aa88d40894ad6bd41e7afc3dc32c836325"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/icons.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/icons.tsx",
+      "sha256": "10b325cb69a6ffcacad52da7f9579ed758b97c065246718caff0a3fa604347ba"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/index.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/index.ts",
+      "sha256": "fefa2f1ea46d65eac224527b21d2bf9ad16edcf316a09beafb6145a6a5ed0fcf"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/keys.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/keys.ts",
+      "sha256": "77d09fab4597ec6574b0db9376574faa2df4011932b4c8a820c6183f47616275"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/live.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/live.ts",
+      "sha256": "9559905c6de85cae6fbb07539a242c4260ed8b9bedc2bef9caef2e51ec33cf54"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/locales.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/locales.ts",
+      "sha256": "e731c4edd8d3e7332b03adcd071ebc33666a11e93429fd89e8c59446a9e121b5"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/markdown-io.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/markdown-io.ts",
+      "sha256": "9fe4fd193b4c084f0f416683fd0f897d9f6060f3980ca1e45e7832416b6cbc55"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/model-list.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/model-list.ts",
+      "sha256": "67412a3a36dfaec0be08dffc4ba0f8a903be41e80cc090fe568ddd43cf2d55ca"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/overlay.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/overlay.ts",
+      "sha256": "1c4fe6639e46dd978a01c3c5af29d3814f2185d2ca9d3c92e0790e63ea586988"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/panels.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/panels.ts",
+      "sha256": "6d2684cb95afcd188f79007b1c489a00defc659c5ae8675681757d71c3441760"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/permissions.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/permissions.ts",
+      "sha256": "96a7dfc464ac034f9a070b9f3e1352bcfa1e5274fecdb3937c16f72e03cc5b85"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/prefs.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/prefs.ts",
+      "sha256": "6df25f2017f452ffdbb8e0d388db7a6f6afeee6cfe3af8bd276cfd9d2d822dbe"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/rooms.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/rooms.ts",
+      "sha256": "ee4fa7a594accf784546c1bf5e41a3623db9eddac0c8c6d227c8715a6750bf9c"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/settings-search.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/settings-search.ts",
+      "sha256": "508bd517f8ab64482cf7d5991c1fac678bd6732d42b4f121b02ec0188e3dd372"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/settings-shell.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/settings-shell.ts",
+      "sha256": "9be41d33f23bb853d3cae693435d137f5161559c26f708713252b297eb1e10ee"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/steps.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/steps.ts",
+      "sha256": "de7b202ee64db053a269c5fdc0e721b746260cf10222c53fda3d779180cb23fa"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/styles.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/styles.ts",
+      "sha256": "388e613b566c84f93152847a8082851a3dba79d411f3f0df7fe7d3b4c764528f"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/ui.tsx",
+      "sourcePath": "harness/dsh-nanomuse/src/client/ui.tsx",
+      "sha256": "10136503786845d45a26b350e2efa7bb597a26d3c18c21bc3c6cba6f046f7bba"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/win.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/win.ts",
+      "sha256": "9bbf9502ccbf4ba168016c6893815fbfd5ea8630b253baa94401253026f3e8ea"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/windows-updates.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/client/windows-updates.ts",
+      "sha256": "fb8cefbe72046054d4a588ea14da3cc7705ae586ba1078074140ba88269ab14b"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/cloud.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/cloud.ts",
+      "sha256": "5fe8a76f7c576015151c888ac20f0be3513f96b2b19b1439fd5e61f4d9d41c30"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/coding-readers.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/coding-readers.ts",
+      "sha256": "f95b554c50af04f226b84cac2757507fa90e3278e29a022610ab826369c8c859"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/coding-runner.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/coding-runner.ts",
+      "sha256": "6c27bb40d555027cf2ebc9c6701a3ff3c790f879f491e50febf29a3d9a128909"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/coding.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/coding.ts",
+      "sha256": "f5e9f8816ed9cda68241e45af9f86437b2f369f7c3867729876ad235dac88a84"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/connectors-catalogue.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/connectors-catalogue.ts",
+      "sha256": "ae26e53cfaf773d67c5dea8f97a15fa820b8c241d448e180b0725c1f61a45a53"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/connectors-tools.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/connectors-tools.ts",
+      "sha256": "3164278379b865843ddef9ec86e6647e36052ec3d8ab978860bc7b21dec8a9a2"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/connectors.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/connectors.ts",
+      "sha256": "30308fc70df7c7a25b76170d227e6d1b592cc920e4f772d4ee9a76573b1110d8"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/desk.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/desk.ts",
+      "sha256": "e4840c5c167a4d62e72de4c515b4565f795383e61737e0bb9087ca6778aee355"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/fences.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/fences.ts",
+      "sha256": "81866dae234511702c3c9e12f62a0bb4efbfcb27ecfc70e77882bdaa4aa279e1"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/firstrun.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/firstrun.ts",
+      "sha256": "325ce7bafc8690c8290a18b48e6d509dca0393f35c480deb22c8a184a616e7c5"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/hands-check.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/hands-check.ts",
+      "sha256": "5fec58c758c5c65732721863b9f01696a1ea70f39cd945179add6ee5ee10624f"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/hands-tools.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/hands-tools.ts",
+      "sha256": "eadab333379682754cac0dfd964337aa3b84afab8187332de58542e976a3a7d3"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/hub.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/hub.ts",
+      "sha256": "c13b180a058938cf76d9560733d55973de5ee9f84dca893ac315b9eff49866c9"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/images.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/images.ts",
+      "sha256": "71645c2e4b7ffcc0f3b748081f349d3317fa7be4f9df11fd56d0c0a9c15e0409"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/index.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/index.ts",
+      "sha256": "418f876da3725307335a392dbbe7fbd746bf3ada81fd6d7a02742a93dd112b8f"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/motion.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/motion.ts",
+      "sha256": "bb3f2348ad3789c7c4cf39519a6269639a796191f4a2ddf69233477983e3e02c"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/nudges.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/nudges.ts",
+      "sha256": "52328998fd5a35324ab79a568fa9bfae89d85d74dc94309bfabaf8781444d992"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/own-clip.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/own-clip.ts",
+      "sha256": "238d5265a5f1652db1cde3caedf868532f2a0cea585ec68c7b242488712935c5"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/profile.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/profile.ts",
+      "sha256": "9b6c2bdfb60717e535b59eacf439699d523a04ef1d6608e8dbafae8cf3e5ea92"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/providers.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/providers.ts",
+      "sha256": "350cd7f440a0778d4128a33cb0e119ddd85d362c105ef79c02f7bc9ac3163231"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/reach.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/reach.ts",
+      "sha256": "d0be7f8066b78e8bd35db40effb963b40f9ea1ee08ffe652cf21d382a6c56a5d"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/refusals.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/refusals.ts",
+      "sha256": "0edb103135d3f367d44fd8516f01c79c49fa659e408cb79a1690c3147bd1dcb1"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/relay.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/relay.ts",
+      "sha256": "9b259d26f5ef426de0c7cafe85baf448c44cf6ee88f405482178e696343ad3ee"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/rooms-tools.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/rooms-tools.ts",
+      "sha256": "9b499c6027ef09192154b098b8be9c1682c4b9223048b14d3aa6d528995150c8"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/rooms.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/rooms.ts",
+      "sha256": "94a4933892c952244f91e6b7660f8f5cef9acfefbb1f81c9d9e35a236c8775a5"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/sync.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/sync.ts",
+      "sha256": "dd7671eef1cec7096ad9225657dfce44b4bab8f8d136a8ba4fbc4ad74a4dd09b"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/task.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/task.ts",
+      "sha256": "af5d48adf90bd1df217066f71621078672df172e41db45f5f90af657eeb89fa3"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/trajectory.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/trajectory.ts",
+      "sha256": "d939f1a707ca9fa4a121676f5d2a74a8d0cd09075f07c51023311c4133481e3c"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/video.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/video.ts",
+      "sha256": "86a48936c1ee8e9d0c43fd26491d93c3aecde21102b60307ad24a9293954f0be"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/windows-acl-runner.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/windows-acl-runner.ts",
+      "sha256": "dee5935c098d83f26d8f4f30c9fc00bf556b6f22a5ecaa15d7554025b2225de8"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/windows-console-host.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/windows-console-host.ts",
+      "sha256": "acfc11b5b09025852c9f7f57c5cf44a3bf3cceb20751c8f29f5c94f4fac64fea"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/windows-pwsh-sandbox.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/windows-pwsh-sandbox.ts",
+      "sha256": "711ab629df82fa5e78fc5124609049702be77ba19257cdb7b16cc799c9b1ff75"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/work.ts",
+      "sourcePath": "harness/dsh-nanomuse/src/work.ts",
+      "sha256": "6c4b1ab12d700e99c10af604bd7ed793fb5b880f3f8d8ae6dce95288397944d6"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/actions.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/actions.test.mjs",
+      "sha256": "7d041a8cea61eaf1b9abc2f6151a714266fec28ce4913baf06053f26f2cd8413"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/admit.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/admit.test.mjs",
+      "sha256": "8d1350a0be5e7c6b849f43cf7ba2006eb585db19d47734abd9be9850bac781cd"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/api-methods.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/api-methods.test.mjs",
+      "sha256": "edfcd99214356d41bc130db3a7875c96f82382c587311c8942e028b0117c0841"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/assets.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/assets.test.mjs",
+      "sha256": "0359b0dd885cdbc92010c51a3c60a535e34fa8c454fa5c3367379024e0f04e83"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/avatar-flow.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/avatar-flow.test.mjs",
+      "sha256": "b56ba6ac2c21ce522027cdf9c26812a3331ed8144334b90762f193bd145bfc59"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/cloud-models.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/cloud-models.test.mjs",
+      "sha256": "b99164040e96328a34f22c9b4801327d856cc52e0a860e2c7477f5ac8bf103e8"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/cloud-off.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/cloud-off.test.mjs",
+      "sha256": "1702c2fe16df3635795afbae20e8f967c3837fc75d3c09b309b544ef47c38f19"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/cloud-providers.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/cloud-providers.test.mjs",
+      "sha256": "579ad6bbef3b962137c78bab4940d76396fb5e1d72d8f33d801220e3cbf3925c"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/coding.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/coding.test.mjs",
+      "sha256": "d13259faa5091d9804af908633769c277d44a5a5f223a9f49fa76fba57a1ba13"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/connectors.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/connectors.test.mjs",
+      "sha256": "06f26784bec4f5e3c7b72dac98dba4ba7fb9fb6f31e7f3a190baabb990db3d92"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/desk.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/desk.test.mjs",
+      "sha256": "f82bd3a70039633c1caf0c6af59117f2576d8e57d5a8880cc1185947a78b3d0d"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/failure-text.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/failure-text.test.mjs",
+      "sha256": "bcb17d01a4daa000b1a6495c189cb5acc6f9787fe554a9fbca7a7f9ba3ae7906"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/fences.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/fences.test.mjs",
+      "sha256": "eebcc369d881ec831e0bfab2ff3fbb8c2ba4deaa62146bdf2875ec6147c68873"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/firstrun.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/firstrun.test.mjs",
+      "sha256": "ac659f5971014c0e157b673dcb790c3ec568fe2d27f63029cd307b2886fec14c"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/grants.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/grants.test.mjs",
+      "sha256": "846da1a3880e18a12d0d5497bd21f146e7631156c8c188f2e673eca1f3026671"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/hooks.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/hooks.test.mjs",
+      "sha256": "80fc2c2673acf6ac84ce220868a0dde6cf29f5e0ba85ee9536d858229c5dd129"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/hub.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/hub.test.mjs",
+      "sha256": "3cf00a18340a83ee5814d89251de5c256fdca4ce9210e6f4436e31244ff4b5cc"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/locales.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/locales.test.mjs",
+      "sha256": "420d398160641bb35d7c037272738a26b0c537b5e7e29f147a63d13e84f3d947"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/model-list.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/model-list.test.mjs",
+      "sha256": "71915f08f57285adcb29a9582a285a744097e1fbbbf4956bdf95e775c6216b0b"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/motion.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/motion.test.mjs",
+      "sha256": "856846272087b1de5544d1378060fd32e8e3aeba260d7fcb3dfca07961e870b9"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/nudges.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/nudges.test.mjs",
+      "sha256": "7a246eff30b2ea1e9920747a52292ddb2f2d734961cb954305d275fafd1e3b8c"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/own-clip.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/own-clip.test.mjs",
+      "sha256": "72cafdf609ed037d0a8195aaa78b4411cd7d91fd39ad2b7249877b9c2d5ec90a"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/permissions.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/permissions.test.mjs",
+      "sha256": "6b929b8f2f330736550d45a1c81ae0d1ef7452f6cb3869d3ca54bf4891711432"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/profile-local-face.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/profile-local-face.test.mjs",
+      "sha256": "43d269ff09789ae2230045ba19ebedc080fdd184aa53f83bccae2ae488100da1"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/providers.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/providers.test.mjs",
+      "sha256": "da16a59444a763bc7ca24c1d908fe65e32947986fae01a8b519dc34bcd17f710"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/refusal-card.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/refusal-card.test.mjs",
+      "sha256": "758eb52a43ae682e4031e18aa3df7bae332481f0372ab06c6078c57e644f13aa"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/refusals.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/refusals.test.mjs",
+      "sha256": "3c8798d504ea20c6b16f0bc0d87f3bfa6be6711412c5b58a7f3aad41f9e3e09d"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/relay.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/relay.test.mjs",
+      "sha256": "233dc63c711bce3737f2f50e4493b312536ee7be7277040def152e9e4668b89b"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/rooms.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/rooms.test.mjs",
+      "sha256": "225ef011da379e8335da8fd1fe6a628d88164c5ee89087af2062fbc6bff6be65"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/settings-search-dom.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/settings-search-dom.test.mjs",
+      "sha256": "5eff0bfbfb182d323bf6391b983906f182356ce5df329827307102b13e41b3ee"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/settings-search.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/settings-search.test.mjs",
+      "sha256": "35a000412e54193a2cd990d040ac07d28aff01306e9920ca77e2292fc4ffbe8d"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/settings-shell.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/settings-shell.test.mjs",
+      "sha256": "9a364b81a7a7af871efa0923ea3b41f520673de971f1e1e63e6970fb46b6cc06"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/splash.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/splash.test.mjs",
+      "sha256": "fc6cfe8b3ead588881f0dc6eaae8815420b96e39b27924854a9bd080ff4b8532"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/stage.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/stage.test.mjs",
+      "sha256": "4a3ede0b89ff94bb8e926d58705f73da5aaf9a3124f4674723f15cdd611cdd96"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/styles.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/styles.test.mjs",
+      "sha256": "4a40f553257903eed808940e8dbb1fbd53d3f2c08028b2d1901932f2196a3778"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/sync.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/sync.test.mjs",
+      "sha256": "52c357f6865032b80f1bdeb055495334123723a55e7c90dd7921f10cb6273296"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/task.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/task.test.mjs",
+      "sha256": "22d915b603224092e3630e3a15a1dea654215488d4f635150386ac0754150572"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/trajectory.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/trajectory.test.mjs",
+      "sha256": "67c9c62df25609a7982db5465aafd29870ebe89c23805fedd496e1c0c09be839"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/update-cache.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/update-cache.test.mjs",
+      "sha256": "de47da48015aff8ff3c224d5a2ef99acd7c058782fe55f2bed0043b7d573be53"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/video.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/video.test.mjs",
+      "sha256": "e9a43a91438c476f9b65a20357268c412bbac2ab12646683445504fbd6bfb07a"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/windows-pwsh-sandbox.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/windows-pwsh-sandbox.test.mjs",
+      "sha256": "366d0b2f9dcd44fa733fa6a98fc31da3f6e36d8e78e26629b7eebd0fc0425c01"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/windows-updates.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/windows-updates.test.mjs",
+      "sha256": "c2b22a19bc65bcfa33c90063bb41a546c0615fa133f3bd8673ea3ee2d2ac59a3"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/work.test.mjs",
+      "sourcePath": "harness/dsh-nanomuse/tests/work.test.mjs",
+      "sha256": "c4d23fcc0a32abd221d6f939fad5ca1aa7718b5216970afc808f5bccc15ad450"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tsconfig.json",
+      "sourcePath": "harness/dsh-nanomuse/tsconfig.json",
+      "sha256": "33bfd0bca495812a55497157eccc02e89e2e0a9699cdcf967b0217f369087d25"
+    },
+    {
+      "path": "nanomuse/__init__.py",
+      "sourcePath": "nanomuse/__init__.py",
+      "sha256": "2eed3fbd8beb57116c1b1838155d165c8e7c95154ad3bf5431d9aff747a9312a"
+    },
+    {
+      "path": "nanomuse/__main__.py",
+      "sourcePath": "nanomuse/__main__.py",
+      "sha256": "e0de5e6a6b147929f203e945739a82607c2658d34cd8684f31848fa3eb15a50d"
+    },
+    {
+      "path": "nanomuse/agent/__init__.py",
+      "sourcePath": "nanomuse/agent/__init__.py",
+      "sha256": "62433797388619e4cf92cee395422369e37a317ed190f2a47872d20383f5ebf8"
+    },
+    {
+      "path": "nanomuse/agent/core.py",
+      "sourcePath": "nanomuse/agent/core.py",
+      "sha256": "3eadff16323d7d474049a62d5020b2b2360d363fc14cea0f1bbcff4a5c00e20b"
+    },
+    {
+      "path": "nanomuse/agent/holds.py",
+      "sourcePath": "nanomuse/agent/holds.py",
+      "sha256": "1635801497c4943c2d1d0c068ecf0a0bcf1a72b1e2a4e05fe2c84a094af420b1"
+    },
+    {
+      "path": "nanomuse/app.py",
+      "sourcePath": "nanomuse/app.py",
+      "sha256": "a4855045fda898e911ce674829ec6a60477e845281001b03b9096950e5f82360"
+    },
+    {
+      "path": "nanomuse/avatar/__init__.py",
+      "sourcePath": "nanomuse/avatar/__init__.py",
+      "sha256": "35f75b977c9e55473466d6c0089036f1f068983fe83a701d3d4d4fea57176a02"
+    },
+    {
+      "path": "nanomuse/avatar/studio.py",
+      "sourcePath": "nanomuse/avatar/studio.py",
+      "sha256": "60a8f0bf410f256dc26cfecfb1ae5c78f5ea25ff2d9181e19b20db45e29d1053"
+    },
+    {
+      "path": "nanomuse/background.py",
+      "sourcePath": "nanomuse/background.py",
+      "sha256": "5e6aa899e9462c3dafdf83c0ee85fa47e7dc5d46e5702d66f39973b5297b31ed"
+    },
+    {
+      "path": "nanomuse/bridge/__init__.py",
+      "sourcePath": "nanomuse/bridge/__init__.py",
+      "sha256": "708a67a173016a705cf2dc9e60317b6c3b4b9ab144b25e32c17d7d21de7f4f15"
+    },
+    {
+      "path": "nanomuse/bridge/cli.py",
+      "sourcePath": "nanomuse/bridge/cli.py",
+      "sha256": "9cdc3b1dd0e1a405cb02311a9a38f4917241bd580dd3b369322adcf14e12eb78"
+    },
+    {
+      "path": "nanomuse/bridge/mcp_server.py",
+      "sourcePath": "nanomuse/bridge/mcp_server.py",
+      "sha256": "1b51ccc14915a1f7d0a4c042316fd564177a2aa3653eb5de7b12abb1638422c7"
+    },
+    {
+      "path": "nanomuse/bridge/server.py",
+      "sourcePath": "nanomuse/bridge/server.py",
+      "sha256": "7df16ed884b483f32be7fecf36fb77603911f797c2a590fe82ba8d27d7ed43ca"
+    },
+    {
+      "path": "nanomuse/bridge/tokens.py",
+      "sourcePath": "nanomuse/bridge/tokens.py",
+      "sha256": "bcdf5cdc951fae662788437d24672caa53d30aa41596084b6e3c4ace3baac60f"
+    },
+    {
+      "path": "nanomuse/calendar/__init__.py",
+      "sourcePath": "nanomuse/calendar/__init__.py",
+      "sha256": "2523967273e7dd70d4f063232ca3f3bcb5004c4a0e97d8c0c96529db69e28ab2"
+    },
+    {
+      "path": "nanomuse/calendar/feeds.py",
+      "sourcePath": "nanomuse/calendar/feeds.py",
+      "sha256": "3e8f0cd62b5c39d0330fee3406ae01f344c32110c253a2bf7fb817fb780a0496"
+    },
+    {
+      "path": "nanomuse/calendar/ics.py",
+      "sourcePath": "nanomuse/calendar/ics.py",
+      "sha256": "5e0f477ccaf2336796890acd1dd2080553892382a437b6b523ebdbd8a72f3591"
+    },
+    {
+      "path": "nanomuse/certs.py",
+      "sourcePath": "nanomuse/certs.py",
+      "sha256": "dae3414f16a47b8c6106b0dfe81b302a84ea9be036891ddad2f739879806cb3b"
+    },
+    {
+      "path": "nanomuse/channels/__init__.py",
+      "sourcePath": "nanomuse/channels/__init__.py",
+      "sha256": "f7d15aae79c985d053c2a441676d2f182fb19fc7cbb8218aa3d1950bed7b0360"
+    },
+    {
+      "path": "nanomuse/channels/base.py",
+      "sourcePath": "nanomuse/channels/base.py",
+      "sha256": "46322cd30cd0830ba2a11814e39388d7d1e16c01bc23832bc355bfff29dcd9b2"
+    },
+    {
+      "path": "nanomuse/channels/cli.py",
+      "sourcePath": "nanomuse/channels/cli.py",
+      "sha256": "09fd82f6a6c94b82f794c4fff109b4fbbfe74d52d2f9d6989dcda750544b8ed2"
+    },
+    {
+      "path": "nanomuse/channels/dingtalk.py",
+      "sourcePath": "nanomuse/channels/dingtalk.py",
+      "sha256": "f8d5d646a62e21a76a79895ba86acd41218df66595aeaa221a600fb6d691c200"
+    },
+    {
+      "path": "nanomuse/channels/feishu.py",
+      "sourcePath": "nanomuse/channels/feishu.py",
+      "sha256": "bd1a4155a534c1f58ca07233020c8366730af910e7c59242c27b82aff963788d"
+    },
+    {
+      "path": "nanomuse/channels/manager.py",
+      "sourcePath": "nanomuse/channels/manager.py",
+      "sha256": "59a324b15454165763cf703b26b91984c26c0a8487ccb40e8c1bcc6a87ade1db"
+    },
+    {
+      "path": "nanomuse/channels/store.py",
+      "sourcePath": "nanomuse/channels/store.py",
+      "sha256": "bac469aef3d4729ad2c2e87ffe21ea3834561f51051b2c8d651bf035c1d006f4"
+    },
+    {
+      "path": "nanomuse/channels/telegram.py",
+      "sourcePath": "nanomuse/channels/telegram.py",
+      "sha256": "44b852babac64f1b02a6bb0bac944c7cf335c355f64400d716718d2e06af0f15"
+    },
+    {
+      "path": "nanomuse/channels/wecom.py",
+      "sourcePath": "nanomuse/channels/wecom.py",
+      "sha256": "3f20e6bd85d9b2f47dc3eb62c9ee4aefd00c04b516d32bad7cb27d4733f30a68"
+    },
+    {
+      "path": "nanomuse/chatgpt_cli.py",
+      "sourcePath": "nanomuse/chatgpt_cli.py",
+      "sha256": "d97303a501b011ca3999efb93586e18386b0ea9285e518d33a139879f684813e"
+    },
+    {
+      "path": "nanomuse/cli.py",
+      "sourcePath": "nanomuse/cli.py",
+      "sha256": "984f347ce7077894a9945da7a6f33ce2d487fbfe8b19b7d2a2a46e81b80d2b31"
+    },
+    {
+      "path": "nanomuse/cloud.py",
+      "sourcePath": "nanomuse/cloud.py",
+      "sha256": "eb3e262a5c7d667ea2e133d5c0d0dcc8754283c923543bf771b3eed4cc305d7b"
+    },
+    {
+      "path": "nanomuse/coding/__init__.py",
+      "sourcePath": "nanomuse/coding/__init__.py",
+      "sha256": "f38b0736e38e9835ec67f7260e95e4e411a3aa6cf7557ebb7d9d90264e76433b"
+    },
+    {
+      "path": "nanomuse/coding/agents.py",
+      "sourcePath": "nanomuse/coding/agents.py",
+      "sha256": "eaf2a6e8230f527aa4a21c488773682600c71b54b6afe46c39b455864e9f81ff"
+    },
+    {
+      "path": "nanomuse/coding/runner.py",
+      "sourcePath": "nanomuse/coding/runner.py",
+      "sha256": "50d4cc80e83af067825fb1070cea87b263c3d1c65c3e8cbc26f7aede64e03edf"
+    },
+    {
+      "path": "nanomuse/coding/service.py",
+      "sourcePath": "nanomuse/coding/service.py",
+      "sha256": "c59c4d13000e4de32ff027988bd64e3ae7c4c7b1fa15b530ed9386b838edc3c4"
+    },
+    {
+      "path": "nanomuse/computer/__init__.py",
+      "sourcePath": "nanomuse/computer/__init__.py",
+      "sha256": "23f2d18084800f62ab30cd822834b0cc62d8728be1c33121225c054305246161"
+    },
+    {
+      "path": "nanomuse/computer/coords.py",
+      "sourcePath": "nanomuse/computer/coords.py",
+      "sha256": "ea6321173c0bd21de28d2616b3f1836a7ba66f9e7ef25da324e0932c16b48170"
+    },
+    {
+      "path": "nanomuse/computer/hands.py",
+      "sourcePath": "nanomuse/computer/hands.py",
+      "sha256": "24ee66372aba9ce61a31a94486c601220079fa6c24838d0cd491639d7c361cf9"
+    },
+    {
+      "path": "nanomuse/computer/link.py",
+      "sourcePath": "nanomuse/computer/link.py",
+      "sha256": "67c0106c7735eaa6dbc01ff26ed53de70ae1da8f7a5550e4e12aa03e9ed7c0f9"
+    },
+    {
+      "path": "nanomuse/computer/mac_window.py",
+      "sourcePath": "nanomuse/computer/mac_window.py",
+      "sha256": "cffa585f489dece25b9f6397bdf652c2fcdb7975d5d35c1748570ce2703235c1"
+    },
+    {
+      "path": "nanomuse/computer/operator.py",
+      "sourcePath": "nanomuse/computer/operator.py",
+      "sha256": "6e37496013021476cdc2874b532454efbc3822f6671e63154acdf23d85bf16f7"
+    },
+    {
+      "path": "nanomuse/computer/screen.py",
+      "sourcePath": "nanomuse/computer/screen.py",
+      "sha256": "f67232c9c8a364bcb5a89ccee5837d56a46c70e62331015e7005650f0b69dc61"
+    },
+    {
+      "path": "nanomuse/config.py",
+      "sourcePath": "nanomuse/config.py",
+      "sha256": "1e4fd8a49b33a4b1afda1a71136fcafbcdbcda53ceb99c9acb55452fcb290820"
+    },
+    {
+      "path": "nanomuse/console.py",
+      "sourcePath": "nanomuse/console.py",
+      "sha256": "caf94f68bececc279e8b220e55808293614c97c1f8b1498df9f37e3a8963d762"
+    },
+    {
+      "path": "nanomuse/contacts/__init__.py",
+      "sourcePath": "nanomuse/contacts/__init__.py",
+      "sha256": "ebdbf4aa5dff67464f9798910acd74a524ac52dbfd8d7d32f7878e0267fe8721"
+    },
+    {
+      "path": "nanomuse/contacts/book.py",
+      "sourcePath": "nanomuse/contacts/book.py",
+      "sha256": "667c466db9463b0393c7c74ea88303d69faf7d73f24d85a2691ed3bf96c98f26"
+    },
+    {
+      "path": "nanomuse/contacts/vcard.py",
+      "sourcePath": "nanomuse/contacts/vcard.py",
+      "sha256": "1048b00640693d186d3db75a5a586374b307f2f4745b4d91d095ddff8841fd30"
+    },
+    {
+      "path": "nanomuse/fences.py",
+      "sourcePath": "nanomuse/fences.py",
+      "sha256": "0f633e621e661ca9d4aa74d761fa18d1aa1778d1e46d1a34559b1e6328cb1e58"
+    },
+    {
+      "path": "nanomuse/goals/__init__.py",
+      "sourcePath": "nanomuse/goals/__init__.py",
+      "sha256": "df406869c58b72d782e82b1607353c9ff1e92f4d348fdcf9b803bb1b06cb6799"
+    },
+    {
+      "path": "nanomuse/goals/evaluation.py",
+      "sourcePath": "nanomuse/goals/evaluation.py",
+      "sha256": "fce82c2176918bb118055c658be0205bde15ce3cfc9cb8a3d44311cfc913ace1"
+    },
+    {
+      "path": "nanomuse/goals/store.py",
+      "sourcePath": "nanomuse/goals/store.py",
+      "sha256": "64b8cc928b563a69afbb4bf532e26bbc61d45cd240ca4ac1a4d01567a3352bdc"
+    },
+    {
+      "path": "nanomuse/hub/__init__.py",
+      "sourcePath": "nanomuse/hub/__init__.py",
+      "sha256": "5fd6beac3f11364cdb82eefeb4e68102def13541ddcb264a87024fe41dbb5081"
+    },
+    {
+      "path": "nanomuse/hub/actions.py",
+      "sourcePath": "nanomuse/hub/actions.py",
+      "sha256": "e214a9263b81304e8a923561e25e3a708008a55fcea11e26ebf387078ce47dae"
+    },
+    {
+      "path": "nanomuse/hub/client.py",
+      "sourcePath": "nanomuse/hub/client.py",
+      "sha256": "97888443771294b5ec3a904303880cb93519d3ca05023958c3163b2bbc1b7b9c"
+    },
+    {
+      "path": "nanomuse/hub/profile.py",
+      "sourcePath": "nanomuse/hub/profile.py",
+      "sha256": "55fc61a88f8f7072cf86a868f840ac19f930673d64b7d7b57d54d3fe6365b3d0"
+    },
+    {
+      "path": "nanomuse/hub/service.py",
+      "sourcePath": "nanomuse/hub/service.py",
+      "sha256": "a87302e663af2acd2291a218f44e0eb804dfa2e5ef973ff8345412e45fae86f6"
+    },
+    {
+      "path": "nanomuse/llm/__init__.py",
+      "sourcePath": "nanomuse/llm/__init__.py",
+      "sha256": "f7d7bf5e5737915db00311c95918598fd3bf48b0984b7464b0da190423cc2418"
+    },
+    {
+      "path": "nanomuse/llm/base.py",
+      "sourcePath": "nanomuse/llm/base.py",
+      "sha256": "692b97bb467a8021c2e467914de6f2396172e6709db83111a20ca8f3ee7d21fd"
+    },
+    {
+      "path": "nanomuse/llm/catalogue.py",
+      "sourcePath": "nanomuse/llm/catalogue.py",
+      "sha256": "3cc84cc69ba48286d60812ea3ea72cb9c9775a46bdc826c488ec359ed4b8d5eb"
+    },
+    {
+      "path": "nanomuse/llm/chatgpt.py",
+      "sourcePath": "nanomuse/llm/chatgpt.py",
+      "sha256": "4c409d256aa2166fd98e662df106035ea169d0eed81640f3f5605ededf543e2c"
+    },
+    {
+      "path": "nanomuse/llm/chatgpt_proxy.py",
+      "sourcePath": "nanomuse/llm/chatgpt_proxy.py",
+      "sha256": "275d5ccd2a23b2bcd884f206de1a13fd316f13a787e2e974249f9941b84ebb1f"
+    },
+    {
+      "path": "nanomuse/llm/codex.py",
+      "sourcePath": "nanomuse/llm/codex.py",
+      "sha256": "ee84a6ea8a14159c881291dd0d87eb0b9f211bac1127499d9e88a78adec35962"
+    },
+    {
+      "path": "nanomuse/llm/factory.py",
+      "sourcePath": "nanomuse/llm/factory.py",
+      "sha256": "2b05c55b3d6f851f0a5dbe4ed64e766786bf1d3f44aa54d0b09baccf84d3f6f3"
+    },
+    {
+      "path": "nanomuse/llm/mock.py",
+      "sourcePath": "nanomuse/llm/mock.py",
+      "sha256": "610f48c27568a5961c582cf8b3ce63ae9cd33a9b0292993c688cc48b93d9333c"
+    },
+    {
+      "path": "nanomuse/llm/openai_chat.py",
+      "sourcePath": "nanomuse/llm/openai_chat.py",
+      "sha256": "b6b9ce1998b6f94003e2e2494fb1b3853a60c86fcf8988f973d1b3e85dd265f5"
+    },
+    {
+      "path": "nanomuse/llm/openai_responses.py",
+      "sourcePath": "nanomuse/llm/openai_responses.py",
+      "sha256": "47dc629e068c66e641f3e9e826c07379895bdc019ea32d459705b6b45a064a49"
+    },
+    {
+      "path": "nanomuse/llm/prompt_tools.py",
+      "sourcePath": "nanomuse/llm/prompt_tools.py",
+      "sha256": "20c59f829541d20a6b1a899b2bf7f627d5bf7219bd4bc138d7d6acaeb688052f"
+    },
+    {
+      "path": "nanomuse/llm/providers.json",
+      "sourcePath": "nanomuse/llm/providers.json",
+      "sha256": "1aacd384e5a2f8af4fb65c156a237e3cdfc0b87c1dbef4065f1c82eb87484552"
+    },
+    {
+      "path": "nanomuse/llm/session.py",
+      "sourcePath": "nanomuse/llm/session.py",
+      "sha256": "c75e4b2495f5bfe757424c8950ce2a3c5b40b3dc016ba227b9406065d7e6c369"
+    },
+    {
+      "path": "nanomuse/llm/vision.py",
+      "sourcePath": "nanomuse/llm/vision.py",
+      "sha256": "38e1a3561d78caccb2b65a4448a2d88bca2d2356fb8541081b80ffc1aa3f24ab"
+    },
+    {
+      "path": "nanomuse/logger.py",
+      "sourcePath": "nanomuse/logger.py",
+      "sha256": "3aacd3b6f6066ccb53c37c296d62d8d44c582ffd550d14142376f96f8971abed"
+    },
+    {
+      "path": "nanomuse/loopback.py",
+      "sourcePath": "nanomuse/loopback.py",
+      "sha256": "f4a457a178999600025808c7a542bd129dcac8e1084eeb752a1470595e553f6c"
+    },
+    {
+      "path": "nanomuse/memory/__init__.py",
+      "sourcePath": "nanomuse/memory/__init__.py",
+      "sha256": "db57c6709b446f5d33be3bc1ca4ca2a430803450afa105f174f3239c5dbbcc5c"
+    },
+    {
+      "path": "nanomuse/memory/consolidate.py",
+      "sourcePath": "nanomuse/memory/consolidate.py",
+      "sha256": "1dfa3bda48fc9d0b3579da67783ca51b53f4b8194731debe4b2007c1d4e93bf8"
+    },
+    {
+      "path": "nanomuse/memory/embeddings.py",
+      "sourcePath": "nanomuse/memory/embeddings.py",
+      "sha256": "39161a35f416325c5a0d97c875fc783d1855cd7e50bca8980c6aae4041fb46f9"
+    },
+    {
+      "path": "nanomuse/memory/store.py",
+      "sourcePath": "nanomuse/memory/store.py",
+      "sha256": "d2e0d14dd9bb56cb4d357a894a7ccdd442a972e879b35392aa6e1197adb121e4"
+    },
+    {
+      "path": "nanomuse/nudges.py",
+      "sourcePath": "nanomuse/nudges.py",
+      "sha256": "6ddb7e42c16edec5757c095c01c626a9aea8fbe8a3912391833960a34f2339c8"
+    },
+    {
+      "path": "nanomuse/phone/__init__.py",
+      "sourcePath": "nanomuse/phone/__init__.py",
+      "sha256": "0ab2829159933765d0c610ed0c34ba70a08c3264b3775e7a42dcc3a5044b9397"
+    },
+    {
+      "path": "nanomuse/phone/link.py",
+      "sourcePath": "nanomuse/phone/link.py",
+      "sha256": "f7e03473b5ae5b40c4216615d5355436d548df0d9c6896d1a236004cbc36c901"
+    },
+    {
+      "path": "nanomuse/phone/operator.py",
+      "sourcePath": "nanomuse/phone/operator.py",
+      "sha256": "e392f3461285475204246e05f53c96785a10b987c525f04d08dccd01da1e8820"
+    },
+    {
+      "path": "nanomuse/phone/screen.py",
+      "sourcePath": "nanomuse/phone/screen.py",
+      "sha256": "412a34514ba0f04b5ef2ed766fc8d39bef1118794b261abd4f04599c53ee987e"
+    },
+    {
+      "path": "nanomuse/phone/trace.py",
+      "sourcePath": "nanomuse/phone/trace.py",
+      "sha256": "0810a8d6c75507ef7c19deec30a0be2abc6232540b94d5f506d92d89ad75dc67"
+    },
+    {
+      "path": "nanomuse/prompts.py",
+      "sourcePath": "nanomuse/prompts.py",
+      "sha256": "d26facabe8b8b79f06fb0efbc309343bcedc105bd75bebf81349daf39d8d0a16"
+    },
+    {
+      "path": "nanomuse/reminders/__init__.py",
+      "sourcePath": "nanomuse/reminders/__init__.py",
+      "sha256": "26e9930269970535102e96541419d822394c74f1ca38f151ee81e3c90effc8ae"
+    },
+    {
+      "path": "nanomuse/reminders/store.py",
+      "sourcePath": "nanomuse/reminders/store.py",
+      "sha256": "13c9a952959e05172ea4a251481100bd0b56363113a9092fc8b653ad2d68c587"
+    },
+    {
+      "path": "nanomuse/runtime.py",
+      "sourcePath": "nanomuse/runtime.py",
+      "sha256": "6e1cf8b11be91aca761273d3e4229b3daccf5f7dfdcd7b52b7c88ad5fb3a8b18"
+    },
+    {
+      "path": "nanomuse/sandbox.py",
+      "sourcePath": "nanomuse/sandbox.py",
+      "sha256": "d714465c42384c2891827b240b3e154d2ea573e9fd2bedde5f35a5385c015827"
+    },
+    {
+      "path": "nanomuse/schema.py",
+      "sourcePath": "nanomuse/schema.py",
+      "sha256": "93f6894f219b2a634a9c9d106c3557cfc63208d1b20aa104d8cb8686fac4ce91"
+    },
+    {
+      "path": "nanomuse/search.py",
+      "sourcePath": "nanomuse/search.py",
+      "sha256": "2439b3b006993fe76b9a5ecf80311cca0d522c67d34f5b402bbc2ccb2c86cdf5"
+    },
+    {
+      "path": "nanomuse/sentinel/__init__.py",
+      "sourcePath": "nanomuse/sentinel/__init__.py",
+      "sha256": "bb6bfaadb2fe25ccd7f04e326ebe80543600da3344d13b4d90856e3678ed6657"
+    },
+    {
+      "path": "nanomuse/sentinel/audit.py",
+      "sourcePath": "nanomuse/sentinel/audit.py",
+      "sha256": "c04f781b8da2050fa5cb0bc286a9228ca9194ff64f7376eb586355e207bcb9ac"
+    },
+    {
+      "path": "nanomuse/sentinel/gate.py",
+      "sourcePath": "nanomuse/sentinel/gate.py",
+      "sha256": "fc98ffccfdaea82d20f200ffb1b907fd83c1cb37261d6c7100d6a0d853c0e1b9"
+    },
+    {
+      "path": "nanomuse/sentinel/grants.py",
+      "sourcePath": "nanomuse/sentinel/grants.py",
+      "sha256": "a1ea02fb4d6313976e512ca79dfce13d066b19382b9c71a526fbdd59f9ffc179"
+    },
+    {
+      "path": "nanomuse/sentinel/policy.py",
+      "sourcePath": "nanomuse/sentinel/policy.py",
+      "sha256": "f09d355007a011ed854754a57a8a38ea28b61bcec4e856638a07fe3dcd6ac302"
+    },
+    {
+      "path": "nanomuse/server/__init__.py",
+      "sourcePath": "nanomuse/server/__init__.py",
+      "sha256": "67060c9c46ce8961fb8d73b09beb7050dcb23f6df4cf415fb0c10029c503997e"
+    },
+    {
+      "path": "nanomuse/server/api.py",
+      "sourcePath": "nanomuse/server/api.py",
+      "sha256": "17bef7a74caf41b3c9b1319caa0a24af0dc375f38b283b1ba84068adb5475a65"
+    },
+    {
+      "path": "nanomuse/server/channels_api.py",
+      "sourcePath": "nanomuse/server/channels_api.py",
+      "sha256": "7603c2b2c25a5f68fdb39b3ed80192fcaef2cfc65b22b33f4d62f9cb35016604"
+    },
+    {
+      "path": "nanomuse/server/connections.py",
+      "sourcePath": "nanomuse/server/connections.py",
+      "sha256": "bf7c4d235595d8db43543b5122f72f21a36f8993005294f6214e6f6b8475e24a"
+    },
+    {
+      "path": "nanomuse/server/data_export.py",
+      "sourcePath": "nanomuse/server/data_export.py",
+      "sha256": "c72d7a930cfa3c7c1c68167b31c787d37be19fad1c5b0c0c2121d628939dd416"
+    },
+    {
+      "path": "nanomuse/server/endpoints.py",
+      "sourcePath": "nanomuse/server/endpoints.py",
+      "sha256": "d363e365c25b652de842d7cd20af4ebd397bdd88e26377bc1231b84c46409740"
+    },
+    {
+      "path": "nanomuse/server/events.py",
+      "sourcePath": "nanomuse/server/events.py",
+      "sha256": "6172bc2ce362c51027faad27928d108f99842c8121f58504a00d7536d1e07c85"
+    },
+    {
+      "path": "nanomuse/server/failures.py",
+      "sourcePath": "nanomuse/server/failures.py",
+      "sha256": "ec0a115dcd423127490aa08c00fb97c63a1f9b45044590635e5488ce5631fb9a"
+    },
+    {
+      "path": "nanomuse/server/firstrun.py",
+      "sourcePath": "nanomuse/server/firstrun.py",
+      "sha256": "51c925d4d2d5a9b8de9707790ac73d943fb53984bee16808fb3e55a1b0c6689f"
+    },
+    {
+      "path": "nanomuse/server/outbox.py",
+      "sourcePath": "nanomuse/server/outbox.py",
+      "sha256": "d46ff2cfd173b5a34ee0c781ab685dac7a0de8a4f6819b5ca556ed67b18b927a"
+    },
+    {
+      "path": "nanomuse/server/providers.py",
+      "sourcePath": "nanomuse/server/providers.py",
+      "sha256": "e93fe3c7ee4b82741a3d4c46f5f49bcef019978d4d3dd84e2123dee7de8ad71c"
+    },
+    {
+      "path": "nanomuse/server/push.py",
+      "sourcePath": "nanomuse/server/push.py",
+      "sha256": "3045d8123fa9675aceccb41e2b63930b48014e86bd0f7d670b5f6de87c93f416"
+    },
+    {
+      "path": "nanomuse/server/service.py",
+      "sourcePath": "nanomuse/server/service.py",
+      "sha256": "66b7d236a33bf12d7f334bb59a57945ea70e2461b57de87a2e1feee27c37b02f"
+    },
+    {
+      "path": "nanomuse/server/static/assets/AccountScreen-DndSLN9_.js",
+      "sourcePath": "nanomuse/server/static/assets/AccountScreen-DndSLN9_.js",
+      "sha256": "0b40d42464a4a8556ced2f8cd9ca27b9c1aae8a349bb3fd3b3c1c9baa4e1e64b"
+    },
+    {
+      "path": "nanomuse/server/static/assets/AvatarPicker-C0kEn1er.js",
+      "sourcePath": "nanomuse/server/static/assets/AvatarPicker-C0kEn1er.js",
+      "sha256": "e498d4c707856a3e9c256eb2e18730ba5a360e9413692276771d6046283f8ae3"
+    },
+    {
+      "path": "nanomuse/server/static/assets/AvatarStudioScreen-BFd5sgcw.js",
+      "sourcePath": "nanomuse/server/static/assets/AvatarStudioScreen-BFd5sgcw.js",
+      "sha256": "85ebf577694afb7cce2a0e20b0f5775d9e15c735658728b373fac25b268ba972"
+    },
+    {
+      "path": "nanomuse/server/static/assets/BackBar-BnOuCkgV.js",
+      "sourcePath": "nanomuse/server/static/assets/BackBar-BnOuCkgV.js",
+      "sha256": "39af7a70f812c85f9fbafe962197fb4af9a3c345f05be7849c6e70dcf207d94f"
+    },
+    {
+      "path": "nanomuse/server/static/assets/ChannelsScreen-DQrVYXGz.js",
+      "sourcePath": "nanomuse/server/static/assets/ChannelsScreen-DQrVYXGz.js",
+      "sha256": "16ded6bdcf93f3434ef3c2c4cff346757727daf257ba7d3e0f87ef368c56d8eb"
+    },
+    {
+      "path": "nanomuse/server/static/assets/CloudCard-se-USyH-.js",
+      "sourcePath": "nanomuse/server/static/assets/CloudCard-se-USyH-.js",
+      "sha256": "fa1c3a762a654afe1f30643dfd8478fec0fbefb5b8af74fb608c8fcb3d24d10a"
+    },
+    {
+      "path": "nanomuse/server/static/assets/CodingScreen-_d5uq2zX.js",
+      "sourcePath": "nanomuse/server/static/assets/CodingScreen-_d5uq2zX.js",
+      "sha256": "cf9a26aee95f14574a35509d4ae17fecd40c41ecc67cafa22df6ccef29e5cd36"
+    },
+    {
+      "path": "nanomuse/server/static/assets/ConnectionsScreen-BwLDA4me.js",
+      "sourcePath": "nanomuse/server/static/assets/ConnectionsScreen-BwLDA4me.js",
+      "sha256": "b2264c53f312bcb5d1cea6cece212c03efaf4bda7e60b9a708e8059c7e68ecea"
+    },
+    {
+      "path": "nanomuse/server/static/assets/DevicesScreen-DOfCUq6A.js",
+      "sourcePath": "nanomuse/server/static/assets/DevicesScreen-DOfCUq6A.js",
+      "sha256": "d6d4e5753ce16d3e196224a53be85a7cb01b9d96cf57843d5706074e2d753f08"
+    },
+    {
+      "path": "nanomuse/server/static/assets/Form-BYC3M7-O.js",
+      "sourcePath": "nanomuse/server/static/assets/Form-BYC3M7-O.js",
+      "sha256": "0f9cdbe03204caab6ecd947eb7f15aa797e8d2cc255a182d338994855dfd1634"
+    },
+    {
+      "path": "nanomuse/server/static/assets/GoalsScreen-BDqMGPwB.js",
+      "sourcePath": "nanomuse/server/static/assets/GoalsScreen-BDqMGPwB.js",
+      "sha256": "a5521e1fd58a94d9c260043992387f957de70da2c3b59e636b143e91b8b78aa4"
+    },
+    {
+      "path": "nanomuse/server/static/assets/IdeasScreen-wYvV2GS4.js",
+      "sourcePath": "nanomuse/server/static/assets/IdeasScreen-wYvV2GS4.js",
+      "sha256": "2ee465de3cc5757ab50b733948a2538fa3d4448aff7241ef6dddfc2c86469145"
+    },
+    {
+      "path": "nanomuse/server/static/assets/IdentityForm-Ti9D7jnC.js",
+      "sourcePath": "nanomuse/server/static/assets/IdentityForm-Ti9D7jnC.js",
+      "sha256": "cb65ffa303692f3b9a63df2bf045224f618b566ed0c7da1b4ff71e722ceb20c7"
+    },
+    {
+      "path": "nanomuse/server/static/assets/LibraryScreen-8D8OFyRY.js",
+      "sourcePath": "nanomuse/server/static/assets/LibraryScreen-8D8OFyRY.js",
+      "sha256": "223f089c4aec37063da719fc4578e0679d37120954200571d1506993c20e5d36"
+    },
+    {
+      "path": "nanomuse/server/static/assets/MemoryScreen-BrYILi_B.js",
+      "sourcePath": "nanomuse/server/static/assets/MemoryScreen-BrYILi_B.js",
+      "sha256": "d7ac206d1f5b12bf40ddd2db7d4d625fc5223beeef3d49dba931a28ade027c65"
+    },
+    {
+      "path": "nanomuse/server/static/assets/MuseHeader-HpUH_CuB.js",
+      "sourcePath": "nanomuse/server/static/assets/MuseHeader-HpUH_CuB.js",
+      "sha256": "d5650152f2366523c95c30952edf6c522d2d0d03926fdf15e4b22f685521735e"
+    },
+    {
+      "path": "nanomuse/server/static/assets/Onboarding-mnktstNs.js",
+      "sourcePath": "nanomuse/server/static/assets/Onboarding-mnktstNs.js",
+      "sha256": "4ca70d0f8787fb6b5b0699976b8e1bb9bba07b965b440c8a837d8403039a19d1"
+    },
+    {
+      "path": "nanomuse/server/static/assets/SettingsScreen-CgsCTOD0.js",
+      "sourcePath": "nanomuse/server/static/assets/SettingsScreen-CgsCTOD0.js",
+      "sha256": "dfb17817f56598a779c9ba9317438b4f894b83cb2cef9300a1bcb3c5cd180c5a"
+    },
+    {
+      "path": "nanomuse/server/static/assets/SkillsScreen-DAWfe15f.js",
+      "sourcePath": "nanomuse/server/static/assets/SkillsScreen-DAWfe15f.js",
+      "sha256": "f6af7fdb1bf1bc8a004208052c2fac88cfae0ffd452b271227aea10a8782c003"
+    },
+    {
+      "path": "nanomuse/server/static/assets/StarNudge-DgcG01uB.js",
+      "sourcePath": "nanomuse/server/static/assets/StarNudge-DgcG01uB.js",
+      "sha256": "bd2652031c8cdc220c8f270267d40cc4282eaab12116350564eb82329d409a97"
+    },
+    {
+      "path": "nanomuse/server/static/assets/clapperboard-DhCuIasT.js",
+      "sourcePath": "nanomuse/server/static/assets/clapperboard-DhCuIasT.js",
+      "sha256": "38b8d72514a19786db97bc22ac8d59eb751ee469fccda63ffc8c6b1b3443b227"
+    },
+    {
+      "path": "nanomuse/server/static/assets/database-zap-CFFDICfC.js",
+      "sourcePath": "nanomuse/server/static/assets/database-zap-CFFDICfC.js",
+      "sha256": "a3b41fe8e70904769d63e6b6b84913298953e268120beba422c029774bfd3428"
+    },
+    {
+      "path": "nanomuse/server/static/assets/external-link-BKVyFV8L.js",
+      "sourcePath": "nanomuse/server/static/assets/external-link-BKVyFV8L.js",
+      "sha256": "93bfc77457f530651c701afecbdb6fc63ce4d4d46932774424821f92955486f2"
+    },
+    {
+      "path": "nanomuse/server/static/assets/image-BvWnoL5O.js",
+      "sourcePath": "nanomuse/server/static/assets/image-BvWnoL5O.js",
+      "sha256": "99f27eb37e6c7e1cf298fa0728cc5061afb49669e792fa4d5d93c45e5f051eba"
+    },
+    {
+      "path": "nanomuse/server/static/assets/index-B-xiagfW.js",
+      "sourcePath": "nanomuse/server/static/assets/index-B-xiagfW.js",
+      "sha256": "962e8228a2b51572069e9c281c4170f56c4d366274c190fa7c95237007ff2759"
+    },
+    {
+      "path": "nanomuse/server/static/assets/index-cfcM1xi3.css",
+      "sourcePath": "nanomuse/server/static/assets/index-cfcM1xi3.css",
+      "sha256": "57002ed58676f2deb4bfb643130d7caaf75232c681673d7bf25e9ad4428df87f"
+    },
+    {
+      "path": "nanomuse/server/static/assets/plug-BkQA3rEn.js",
+      "sourcePath": "nanomuse/server/static/assets/plug-BkQA3rEn.js",
+      "sha256": "050158a42b668196197ca2de80ca2e71fcabec2e45431c4de8fa5f2ef73be59e"
+    },
+    {
+      "path": "nanomuse/server/static/assets/refresh-cw-jMUFYkdt.js",
+      "sourcePath": "nanomuse/server/static/assets/refresh-cw-jMUFYkdt.js",
+      "sha256": "235ebaac3eb3d4922478b728f82aec62efe900bafcb3f15ceab99418db6a0f2a"
+    },
+    {
+      "path": "nanomuse/server/static/avatar-presets/copper-acorn-idle.webp",
+      "sourcePath": "nanomuse/server/static/avatar-presets/copper-acorn-idle.webp",
+      "sha256": "bdbb2551d67b78a7219e89113ed78d86a13baac2269841ad1259dc00c0ad1f20"
+    },
+    {
+      "path": "nanomuse/server/static/avatar-presets/dusk-moth-idle.webp",
+      "sourcePath": "nanomuse/server/static/avatar-presets/dusk-moth-idle.webp",
+      "sha256": "128b0c09359997e32bf1973a6fe2050199dcb73b343dd03866c27ef060063075"
+    },
+    {
+      "path": "nanomuse/server/static/avatar-presets/moss-courier-idle.webp",
+      "sourcePath": "nanomuse/server/static/avatar-presets/moss-courier-idle.webp",
+      "sha256": "ff02357b87ec118efacf06ef89c6032c2eb969f1f1e606c579481cc98c29df10"
+    },
+    {
+      "path": "nanomuse/server/static/avatar-presets/tide-tinker-idle.webp",
+      "sourcePath": "nanomuse/server/static/avatar-presets/tide-tinker-idle.webp",
+      "sha256": "217fd0b460758b7b2b9f1a41d2157427079cd9d9257db86f30fffd87eadbef1e"
+    },
+    {
+      "path": "nanomuse/server/static/avatars/dragon-error.webp",
+      "sourcePath": "nanomuse/server/static/avatars/dragon-error.webp",
+      "sha256": "f224bb524da23a5c8987a519601048b36b56c74357d2c28a7ea552482fa9d5a8"
+    },
+    {
+      "path": "nanomuse/server/static/avatars/dragon-happy.mp4",
+      "sourcePath": "nanomuse/server/static/avatars/dragon-happy.mp4",
+      "sha256": "874944c40861398e70f5054bf79b20b1d2a9088b1dc66ddb9825b67618f8daa1"
+    },
+    {
+      "path": "nanomuse/server/static/avatars/dragon-happy.webp",
+      "sourcePath": "nanomuse/server/static/avatars/dragon-happy.webp",
+      "sha256": "d415fb2914e9aecb22283c05f08fd603049153e507b1a5a1a9033634802b0a12"
+    },
+    {
+      "path": "nanomuse/server/static/avatars/dragon-idle.mp4",
+      "sourcePath": "nanomuse/server/static/avatars/dragon-idle.mp4",
+      "sha256": "4ee8e884ff2903d2bbb4bd14a6815d9da29872269cd80772491bf69a0c559414"
+    },
+    {
+      "path": "nanomuse/server/static/avatars/dragon-idle.webp",
+      "sourcePath": "nanomuse/server/static/avatars/dragon-idle.webp",
+      "sha256": "bf446ff38587e45a27bc4d7c21cbb4bf9e13a37ba4c05503a641a3b59c9176c2"
+    },
+    {
+      "path": "nanomuse/server/static/avatars/dragon-waiting.mp4",
+      "sourcePath": "nanomuse/server/static/avatars/dragon-waiting.mp4",
+      "sha256": "50020813c7c6284558c913a9324f99b1fceda18e623261e2504af23aea2b5f87"
+    },
+    {
+      "path": "nanomuse/server/static/avatars/dragon-waiting.webp",
+      "sourcePath": "nanomuse/server/static/avatars/dragon-waiting.webp",
+      "sha256": "03896560296d9859a012b728d359d5d8183b46f00dc0162bd1df6ff8639cc439"
+    },
+    {
+      "path": "nanomuse/server/static/avatars/dragon-working.mp4",
+      "sourcePath": "nanomuse/server/static/avatars/dragon-working.mp4",
+      "sha256": "bc655ada641fb6ca8979db87d3f0f8ae7fc85dc829f8bb3b4f75b349077bd0d5"
+    },
+    {
+      "path": "nanomuse/server/static/avatars/dragon-working.webp",
+      "sourcePath": "nanomuse/server/static/avatars/dragon-working.webp",
+      "sha256": "12a9bca4cd195d187694197f6e099aca49c927cf51dbf0320a6fcb3e100a0b4e"
+    },
+    {
+      "path": "nanomuse/server/static/fonts/OFL.txt",
+      "sourcePath": "nanomuse/server/static/fonts/OFL.txt",
+      "sha256": "140d37233e7f3ce7313798befa9600893bcceaf41a55fa0fa5ad52f7f657a268"
+    },
+    {
+      "path": "nanomuse/server/static/fonts/figtree-latin-ext.woff2",
+      "sourcePath": "nanomuse/server/static/fonts/figtree-latin-ext.woff2",
+      "sha256": "bf7828e2c258cffcfa50a048ee388a36b95bc16b452e8d36fa797635dbe15965"
+    },
+    {
+      "path": "nanomuse/server/static/fonts/figtree-latin.woff2",
+      "sourcePath": "nanomuse/server/static/fonts/figtree-latin.woff2",
+      "sha256": "4ba7d3d096695818fe0686be4f1e82c6b05134e18a22260336130335027462dd"
+    },
+    {
+      "path": "nanomuse/server/static/icon-192.png",
+      "sourcePath": "nanomuse/server/static/icon-192.png",
+      "sha256": "3829f5f82c86cbef6548ef4bc8968575e98e6f23d9f3b9d18818be10db669271"
+    },
+    {
+      "path": "nanomuse/server/static/icon-512.png",
+      "sourcePath": "nanomuse/server/static/icon-512.png",
+      "sha256": "90ee07695b017f5b2d032017e9ef9b0718cfbcfcbf3dce426846d761855a7f90"
+    },
+    {
+      "path": "nanomuse/server/static/icon.svg",
+      "sourcePath": "nanomuse/server/static/icon.svg",
+      "sha256": "44f753064e8cd7fac9fd5520762ff825898554b0dc03deebb0ea2fb7050bf838"
+    },
+    {
+      "path": "nanomuse/server/static/index.html",
+      "sourcePath": "nanomuse/server/static/index.html",
+      "sha256": "f31e4bf47c9c86ecdfa16a99a37099be2c9dfd21891779ee1ad43a1bc44749a8"
+    },
+    {
+      "path": "nanomuse/server/static/manifest.webmanifest",
+      "sourcePath": "nanomuse/server/static/manifest.webmanifest",
+      "sha256": "acc2d7717ae6dbf76505f9a8d285c434da085a36141885eb3072e7a13b549aaf"
+    },
+    {
+      "path": "nanomuse/server/static/mark.svg",
+      "sourcePath": "nanomuse/server/static/mark.svg",
+      "sha256": "2b7a9be628a53b79d3c09c8dbb25be191a4665e30c06534c0d9e7a8f88d3549c"
+    },
+    {
+      "path": "nanomuse/server/static/sw.js",
+      "sourcePath": "nanomuse/server/static/sw.js",
+      "sha256": "9fc91f01178f01bc92dc2e85d2b957166ca428df7e43ed1a56977df55f2917cd"
+    },
+    {
+      "path": "nanomuse/server/tickets.py",
+      "sourcePath": "nanomuse/server/tickets.py",
+      "sha256": "85f68c5da147b623791075253f16f759f3ca375d72c317eee72b5a89657acf19"
+    },
+    {
+      "path": "nanomuse/server/update.py",
+      "sourcePath": "nanomuse/server/update.py",
+      "sha256": "a807cf714db62a7a91f9de079428a78a6d1f25031b3700f19f774da8a54ec090"
+    },
+    {
+      "path": "nanomuse/server/webui.py",
+      "sourcePath": "nanomuse/server/webui.py",
+      "sha256": "6b572abc25499a7998110921f0581ea1cb9225dad37416d8653e705e1f2b5eca"
+    },
+    {
+      "path": "nanomuse/skills/__init__.py",
+      "sourcePath": "nanomuse/skills/__init__.py",
+      "sha256": "d4f00ef752b2b43bacdbecd2305bd6dc7dc15749d35c8fa90b7680704207137b"
+    },
+    {
+      "path": "nanomuse/skills/builtin/amap/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/amap/SKILL.md",
+      "sha256": "ab0d817d4a0b4b099aa845510a34de90997e79b5946575a5188d6bb3dc6580c5"
+    },
+    {
+      "path": "nanomuse/skills/builtin/compare-options/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/compare-options/SKILL.md",
+      "sha256": "aa3411842356fa5ae05476e7cc5afecd7587a60bccf24af62eb12c98755403ff"
+    },
+    {
+      "path": "nanomuse/skills/builtin/feishu/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/feishu/SKILL.md",
+      "sha256": "7a081810dedda6ca300328c61993ee1cb6ec7238febbb48e119dd50693e84f52"
+    },
+    {
+      "path": "nanomuse/skills/builtin/inbox-triage/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/inbox-triage/SKILL.md",
+      "sha256": "91fe17b36af9aa0e5be9eccff410480af1a7b7f6666e1eebf2468125cc50d0c5"
+    },
+    {
+      "path": "nanomuse/skills/builtin/kuaidi100/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/kuaidi100/SKILL.md",
+      "sha256": "72ba8cc9aa915f959f2a59083146b572b43693e8c50a01a66562a7f22a2eaa92"
+    },
+    {
+      "path": "nanomuse/skills/builtin/meeting-prep/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/meeting-prep/SKILL.md",
+      "sha256": "2cc09c9c48ce30e5a1a71e23e3671f1423eea37eb8dc7d5ed045f419c555339e"
+    },
+    {
+      "path": "nanomuse/skills/builtin/phone-messages/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/phone-messages/SKILL.md",
+      "sha256": "176f079a0490e4c9ca5bbfb318b3eee25acd400fc22aa4d423ed7cd764e5970b"
+    },
+    {
+      "path": "nanomuse/skills/builtin/tencent-meeting/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/tencent-meeting/SKILL.md",
+      "sha256": "9945f1d9f9e321079b222e707a39ddba242bde2e44cb6a063fa228bc9f6437c1"
+    },
+    {
+      "path": "nanomuse/skills/builtin/train-tickets/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/train-tickets/SKILL.md",
+      "sha256": "47521f11bb8eba8000c3569e6a985a46eba46ac04639dcefda95d99d882520e2"
+    },
+    {
+      "path": "nanomuse/skills/builtin/trip-plan/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/trip-plan/SKILL.md",
+      "sha256": "25f47f469b92394f5e877edb53fa9dd04159d6edfcb4099602f6b78434681e97"
+    },
+    {
+      "path": "nanomuse/skills/builtin/weekly-review/SKILL.md",
+      "sourcePath": "nanomuse/skills/builtin/weekly-review/SKILL.md",
+      "sha256": "527811802c0bf141f4dc098fe4315164145d7e41274fcad7affc59c0168a4087"
+    },
+    {
+      "path": "nanomuse/skills/library.py",
+      "sourcePath": "nanomuse/skills/library.py",
+      "sha256": "91a93001cfea312ae624dc1dd4c5969f7a305e2925697c7c54207f044fef1e15"
+    },
+    {
+      "path": "nanomuse/sync/__init__.py",
+      "sourcePath": "nanomuse/sync/__init__.py",
+      "sha256": "96004274eb57871937b6dce08db7e17bea6efe58441d2e45d765bf36b9877973"
+    },
+    {
+      "path": "nanomuse/sync/client.py",
+      "sourcePath": "nanomuse/sync/client.py",
+      "sha256": "e6adbc869319e16459eb557a85407b9b7015e5748f727d4bdbd39d66580a8248"
+    },
+    {
+      "path": "nanomuse/sync/engine.py",
+      "sourcePath": "nanomuse/sync/engine.py",
+      "sha256": "625e142dff64e104e442af2f2cc16be59042c802218c68d2ddaa69db436693c9"
+    },
+    {
+      "path": "nanomuse/sync/mention.py",
+      "sourcePath": "nanomuse/sync/mention.py",
+      "sha256": "4778cb504d6fc179c929d0a1c02979acb353765c23cd383207fda892648e31fb"
+    },
+    {
+      "path": "nanomuse/tools/__init__.py",
+      "sourcePath": "nanomuse/tools/__init__.py",
+      "sha256": "1fb5d5eff2fc92b4cb2e175f9af0397f3f2e6c711a677d93e9674ff3ff41e28d"
+    },
+    {
+      "path": "nanomuse/tools/base.py",
+      "sourcePath": "nanomuse/tools/base.py",
+      "sha256": "71ed13390bc9dcbada672cf334294288011ef02b919e8598e7056f417c16bd99"
+    },
+    {
+      "path": "nanomuse/tools/browser.py",
+      "sourcePath": "nanomuse/tools/browser.py",
+      "sha256": "fceb0eba318f7b42759d4d884711533373d9a371b51043a11052930a0a217f31"
+    },
+    {
+      "path": "nanomuse/tools/browser_backends.py",
+      "sourcePath": "nanomuse/tools/browser_backends.py",
+      "sha256": "13628b56576bfd47b3aee55f77befaf794b9c040427a1caa2e1c9f2f2cbea39f"
+    },
+    {
+      "path": "nanomuse/tools/calendar_tool.py",
+      "sourcePath": "nanomuse/tools/calendar_tool.py",
+      "sha256": "f7a2078ed1d6aa67e4f65b44b961041ef829ad974317404297d339e8588ee013"
+    },
+    {
+      "path": "nanomuse/tools/coding_tool.py",
+      "sourcePath": "nanomuse/tools/coding_tool.py",
+      "sha256": "fa53e817b6badca206207194d35d2071cb033c72ef4d53ab1a67b817ca88f1d0"
+    },
+    {
+      "path": "nanomuse/tools/computer.py",
+      "sourcePath": "nanomuse/tools/computer.py",
+      "sha256": "bcca46f6caac528207a09411ad74fc41f2846da6adb37787219fde815604c37f"
+    },
+    {
+      "path": "nanomuse/tools/contacts_tool.py",
+      "sourcePath": "nanomuse/tools/contacts_tool.py",
+      "sha256": "144be8c74e8e09954a05c02c4dd45daeb49bbf71405fa3eef967720ac29d25d7"
+    },
+    {
+      "path": "nanomuse/tools/devices.py",
+      "sourcePath": "nanomuse/tools/devices.py",
+      "sha256": "13bb66239afda713a5cf09849ad52196e296c2133ad958e5d6fe94651fa3c74b"
+    },
+    {
+      "path": "nanomuse/tools/email_tool.py",
+      "sourcePath": "nanomuse/tools/email_tool.py",
+      "sha256": "ae3f37fba6cfdf9c201f6f5c41f7e04dee4723b9c892d8cee3ded635fbf06687"
+    },
+    {
+      "path": "nanomuse/tools/files.py",
+      "sourcePath": "nanomuse/tools/files.py",
+      "sha256": "345e36f7cd0830ed20ea72af225fb55104137f615937aa3349039ffb20ba2401"
+    },
+    {
+      "path": "nanomuse/tools/goal_tools.py",
+      "sourcePath": "nanomuse/tools/goal_tools.py",
+      "sha256": "52d2f1f78dfbe8e851feabd1c4b900cfc922f8d69d4d0059e237e23080d3015e"
+    },
+    {
+      "path": "nanomuse/tools/mcp_tools.py",
+      "sourcePath": "nanomuse/tools/mcp_tools.py",
+      "sha256": "f24ab4a4a1fe22e42a2469b35d89681a0c5b207a914b2fae8bc983d939d33478"
+    },
+    {
+      "path": "nanomuse/tools/memory_tools.py",
+      "sourcePath": "nanomuse/tools/memory_tools.py",
+      "sha256": "213e3288d0712f0a599935d4972b034e382f95defdd351aa5836ede669e51fa5"
+    },
+    {
+      "path": "nanomuse/tools/phone.py",
+      "sourcePath": "nanomuse/tools/phone.py",
+      "sha256": "519b2efdaddd959ef8226769ee4c4b880df832d172db1121e88aeeadb16f1a80"
+    },
+    {
+      "path": "nanomuse/tools/reminder_tools.py",
+      "sourcePath": "nanomuse/tools/reminder_tools.py",
+      "sha256": "cf2a2ea93fe4579e107f6863ef7c59185a027d3482f8c0c81596f0c5c1797ec6"
+    },
+    {
+      "path": "nanomuse/tools/shell.py",
+      "sourcePath": "nanomuse/tools/shell.py",
+      "sha256": "26e8022c503110ff5e0bf081789e8ad137fd53ed0c257265c34ebff8ebc4059c"
+    },
+    {
+      "path": "nanomuse/tools/skills_tool.py",
+      "sourcePath": "nanomuse/tools/skills_tool.py",
+      "sha256": "8791e27d586a48a9e3c0a275a786cfdeca16102837e59d0d134f88388a4dcc21"
+    },
+    {
+      "path": "nanomuse/tools/surface.py",
+      "sourcePath": "nanomuse/tools/surface.py",
+      "sha256": "ad5c4b2ac36e4e251922d39c8457df13423e15a405d29e14aa9b5a40eb2cc0e1"
+    },
+    {
+      "path": "nanomuse/tools/terminate.py",
+      "sourcePath": "nanomuse/tools/terminate.py",
+      "sha256": "a1bd716e13a597be651606cb4a7cded22322032128c197a0881d9865b84b693c"
+    },
+    {
+      "path": "nanomuse/tools/trigger_tools.py",
+      "sourcePath": "nanomuse/tools/trigger_tools.py",
+      "sha256": "ca4a3cd544b2dc7f4160c9c3cdcc116e58dd1506f4b74f111b4c9e2454355fd1"
+    },
+    {
+      "path": "nanomuse/tools/web.py",
+      "sourcePath": "nanomuse/tools/web.py",
+      "sha256": "5f2146a53cfb336ee549609f21b087caef553c30033e3022314fac0c83d9554d"
+    },
+    {
+      "path": "nanomuse/triggers/__init__.py",
+      "sourcePath": "nanomuse/triggers/__init__.py",
+      "sha256": "612c8a3d5ccb499eadd8d809f84f11b69a01d2dd3286f171fe9242b7ca94c666"
+    },
+    {
+      "path": "nanomuse/triggers/mail.py",
+      "sourcePath": "nanomuse/triggers/mail.py",
+      "sha256": "f91d4e95c438f29a9b699a2d868d58c693d4da4c4dc3f5903c44264497d64a91"
+    },
+    {
+      "path": "nanomuse/triggers/store.py",
+      "sourcePath": "nanomuse/triggers/store.py",
+      "sha256": "3e5c18afccd7f57debf9fcdfdd6890a9664964df0cb9b93e12a223b2d83f9736"
+    },
+    {
+      "path": "nanomuse/ui.py",
+      "sourcePath": "nanomuse/ui.py",
+      "sha256": "2a627fb710fa73bd00a73a13eb12ab797deb40c505559addd2fdd784e94be5cd"
+    },
+    {
+      "path": "nanomuse/vault/__init__.py",
+      "sourcePath": "nanomuse/vault/__init__.py",
+      "sha256": "f1ba0addadd5201471883c0d5f72b7e20086dec2fa693aaae98e597fe105cef9"
+    },
+    {
+      "path": "nanomuse/vault/vault.py",
+      "sourcePath": "nanomuse/vault/vault.py",
+      "sha256": "d4464962bfc9f3e257720b2c4c09adc0df8970c9204a60daa745f32d6e57f96f"
+    },
+    {
+      "path": "pyproject.toml",
+      "sourcePath": "pyproject.toml",
+      "sha256": "0c5cef13165ffb0d5959ba39cfcc8dd731f6f99bf2a0ff3536cb1f82b825eac7"
+    },
+    {
+      "path": "scripts/desktop-app/build-runtime.py",
+      "sourcePath": "scripts/desktop-app/build-runtime.py",
+      "sha256": "311ed3967c09dc66a8cae3f354ff0ad84673aabd299b0604711ec5fa064ad791"
+    },
+    {
+      "path": "scripts/desktop-app/nanomuse_runtime.spec",
+      "sourcePath": "scripts/desktop-app/nanomuse_runtime.spec",
+      "sha256": "dd912447623d21e41f1136d13ad0ac15cc2cf8c456dd67c8b4a8a081eebfceff"
+    },
+    {
+      "path": "scripts/desktop-app/package-mac.sh",
+      "sourcePath": "scripts/desktop-app/package-mac.sh",
+      "sha256": "2bedd7164e7881cf84f209fd064df1a7f259898310f9da314643a24930c92614"
+    },
+    {
+      "path": "scripts/desktop-app/runtime_entry.py",
+      "sourcePath": "scripts/desktop-app/runtime_entry.py",
+      "sha256": "8efb81ba8dcbb2d4f23ae6bdd7d2b02d997c7ddd4ce920d2f6142676b35d327e"
+    },
+    {
+      "path": "tests/conftest.py",
+      "sourcePath": "tests/conftest.py",
+      "sha256": "b525b552c2cf8f329b28f72f7fdc3fe08d8a923477575865a795e2a342df7e49"
+    },
+    {
+      "path": "tests/mcp_echo_server.py",
+      "sourcePath": "tests/mcp_echo_server.py",
+      "sha256": "1bf565f382302d7c50e8bbbd988303ee031512e6f2a67ac16747bc121446183a"
+    },
+    {
+      "path": "tests/test_agent.py",
+      "sourcePath": "tests/test_agent.py",
+      "sha256": "11a974f9c202a07f2e061d823cd7c1f99b57a52817b89f69bb06920c43654f02"
+    },
+    {
+      "path": "tests/test_attachments.py",
+      "sourcePath": "tests/test_attachments.py",
+      "sha256": "4fc0018c6b875f8310da84db7fc483fca7733fe0489a528efbac4eca29c3513c"
+    },
+    {
+      "path": "tests/test_avatar_presets.py",
+      "sourcePath": "tests/test_avatar_presets.py",
+      "sha256": "8c58f89ad8b37cdd4a0cb25e30a503b46f17c84633b628cb67cfbb0dbfa82683"
+    },
+    {
+      "path": "tests/test_avatar_studio.py",
+      "sourcePath": "tests/test_avatar_studio.py",
+      "sha256": "2d4a1941e439bac3a1aba0f8111627dde6373d694eecf9f47bb94048fecff923"
+    },
+    {
+      "path": "tests/test_bridge.py",
+      "sourcePath": "tests/test_bridge.py",
+      "sha256": "9ff3b39a2d8f32f313e34b9ac32cba4fca55439db12ff59cb1388b45e47673d2"
+    },
+    {
+      "path": "tests/test_browser.py",
+      "sourcePath": "tests/test_browser.py",
+      "sha256": "1e2455aa7c3687dacf05d5db25cda8893b82d949c772afd035d5ebcde6beb9fc"
+    },
+    {
+      "path": "tests/test_build_runtime_check.py",
+      "sourcePath": "tests/test_build_runtime_check.py",
+      "sha256": "3a1925193b1e6652159b4f98d56f321a2cbf8384d1acb1da6beb06db2a59bdf0"
+    },
+    {
+      "path": "tests/test_calendar.py",
+      "sourcePath": "tests/test_calendar.py",
+      "sha256": "5fff76ebdffabde66c344b212039f99b5af58932c78dded06209705fce7c174a"
+    },
+    {
+      "path": "tests/test_catalogue.py",
+      "sourcePath": "tests/test_catalogue.py",
+      "sha256": "e2a28c20726f3696274142ba1c475633b60f754dc6ebdab6093bb77141314da5"
+    },
+    {
+      "path": "tests/test_certs.py",
+      "sourcePath": "tests/test_certs.py",
+      "sha256": "e729b953199943e5d91aab7cb5387914401e1627d30b1bf523795ccb093b9315"
+    },
+    {
+      "path": "tests/test_channels_api.py",
+      "sourcePath": "tests/test_channels_api.py",
+      "sha256": "a0cc9647df300d3c41df722a3f71e03e152e181c57bd5e8735ff920803c4c73e"
+    },
+    {
+      "path": "tests/test_channels_cli.py",
+      "sourcePath": "tests/test_channels_cli.py",
+      "sha256": "962e55e245a5fa8804016bffb1a3cb4b2411a21020556275d5f68496ccafa988"
+    },
+    {
+      "path": "tests/test_channels_dingtalk.py",
+      "sourcePath": "tests/test_channels_dingtalk.py",
+      "sha256": "4f118c5606ebac95c2c890b1404d2feda8da0c9438df8d25d60117cc8a2afcdb"
+    },
+    {
+      "path": "tests/test_channels_feishu.py",
+      "sourcePath": "tests/test_channels_feishu.py",
+      "sha256": "12e32354bad884191ca3b0278b9a17e76ec54bf15536e8b0068ed83951d1358f"
+    },
+    {
+      "path": "tests/test_channels_manager.py",
+      "sourcePath": "tests/test_channels_manager.py",
+      "sha256": "21b14b9adf430187a6deaf3647482c11db21f5747e443300d25e50bddd0c293f"
+    },
+    {
+      "path": "tests/test_channels_store.py",
+      "sourcePath": "tests/test_channels_store.py",
+      "sha256": "a37ee2ad051aaf9fde9fc89415757aab59327a7956e5e9eb50fc192c50f19e4e"
+    },
+    {
+      "path": "tests/test_channels_telegram.py",
+      "sourcePath": "tests/test_channels_telegram.py",
+      "sha256": "b1cbeb9c302f304db173b3eedaf72639d7bec14efbe1b736af7f30c001572f2f"
+    },
+    {
+      "path": "tests/test_channels_wecom.py",
+      "sourcePath": "tests/test_channels_wecom.py",
+      "sha256": "580a144face490c1bb30c3fbcc206a996d0c2b47069cc9c986485712cc175861"
+    },
+    {
+      "path": "tests/test_chatgpt.py",
+      "sourcePath": "tests/test_chatgpt.py",
+      "sha256": "a4eaf1a0c7166712496b79e72b191a14ec6f7c5105b326c670968f496d5f2d39"
+    },
+    {
+      "path": "tests/test_cli.py",
+      "sourcePath": "tests/test_cli.py",
+      "sha256": "1c286046a1a570d97d2b10bf4e8ccb80991f84f11ee5f01a05665db90161308e"
+    },
+    {
+      "path": "tests/test_coding.py",
+      "sourcePath": "tests/test_coding.py",
+      "sha256": "cfed320dd73ad418644e3f5ce864f8e2250289f9fe00cced2046d27e53150f9b"
+    },
+    {
+      "path": "tests/test_coding_slugs.py",
+      "sourcePath": "tests/test_coding_slugs.py",
+      "sha256": "37a0d1c81c58af3d5bea5791fc339610b3576c6486f3fa31b9eb7a61dd1ed300"
+    },
+    {
+      "path": "tests/test_computer.py",
+      "sourcePath": "tests/test_computer.py",
+      "sha256": "98e97a243975113962b2c7727b460f57314443ab9a9f70a1f35ce9e4ed03ae0a"
+    },
+    {
+      "path": "tests/test_computer_coords.py",
+      "sourcePath": "tests/test_computer_coords.py",
+      "sha256": "f07fae670ad0dca7c05d5af696df16f0e3b9cabe3b7b8b84a516dc949756039f"
+    },
+    {
+      "path": "tests/test_computer_operator.py",
+      "sourcePath": "tests/test_computer_operator.py",
+      "sha256": "e7693711a509a60a7c8b58ea60acb042653c9e00fbf60428d0039107413799ae"
+    },
+    {
+      "path": "tests/test_config.py",
+      "sourcePath": "tests/test_config.py",
+      "sha256": "2b9d701195c449932c1c3eb54f7c64bc671570e5d134fa65d56a51ad9b5cc1ce"
+    },
+    {
+      "path": "tests/test_contacts.py",
+      "sourcePath": "tests/test_contacts.py",
+      "sha256": "f7c17aeef8deb6cb70d7f953194ef458efc20079f0d4e8b49e14c9b8d6a69a82"
+    },
+    {
+      "path": "tests/test_desktop_mac_packaging.py",
+      "sourcePath": "tests/test_desktop_mac_packaging.py",
+      "sha256": "8cd18c597d9d61f9e7aa1755a05d3ab90cc0981351f46b27c345067e17ac4010"
+    },
+    {
+      "path": "tests/test_desktop_runtime_staging.py",
+      "sourcePath": "tests/test_desktop_runtime_staging.py",
+      "sha256": "c21eed83a786d23fc579bdd8c5c06d8e7f36ea9a6d48a5c2374511af58339113"
+    },
+    {
+      "path": "tests/test_docs_markup.py",
+      "sourcePath": "tests/test_docs_markup.py",
+      "sha256": "dd4fba736469b9f8249c38387d4f0455e09bf8f389ed65876b8528514beab6f7"
+    },
+    {
+      "path": "tests/test_endpoints_api.py",
+      "sourcePath": "tests/test_endpoints_api.py",
+      "sha256": "d35b95d26653ac131f1e2d7a30c2e73b52a4c995e1db0f4a21c1a6f1121a6b02"
+    },
+    {
+      "path": "tests/test_failures.py",
+      "sourcePath": "tests/test_failures.py",
+      "sha256": "e9cc533888cc1a4c78ac8c8145c00dba8746801a4ef9eef62b5cc182cad58f8d"
+    },
+    {
+      "path": "tests/test_firstrun.py",
+      "sourcePath": "tests/test_firstrun.py",
+      "sha256": "3b83cacf1f53cc0781bd4f05bfc8d6553ef5279fbab58d354d516ac31912e444"
+    },
+    {
+      "path": "tests/test_goal_evaluation.py",
+      "sourcePath": "tests/test_goal_evaluation.py",
+      "sha256": "cb5aff4d0edd1f85202ed10bc719ff2167f5cddb1f6d7a9e4c2da51b8c7d3fc4"
+    },
+    {
+      "path": "tests/test_holds.py",
+      "sourcePath": "tests/test_holds.py",
+      "sha256": "0947b060ebbc667cf1fa0bff7aa5edbee8af16c7ee4088b8e5b6882ac0e43335"
+    },
+    {
+      "path": "tests/test_hub.py",
+      "sourcePath": "tests/test_hub.py",
+      "sha256": "346efb80bbf7af30081048d4089ab9deaa376ff0a081e7bc07c8f0b9542fbc2f"
+    },
+    {
+      "path": "tests/test_ios_strings.py",
+      "sourcePath": "tests/test_ios_strings.py",
+      "sha256": "50c4ebefff20b18f5d9a4eaf3158ca0bee44b80b5dbe948e1b2b99d2f2ef59b0"
+    },
+    {
+      "path": "tests/test_issue_forms.py",
+      "sourcePath": "tests/test_issue_forms.py",
+      "sha256": "e9baf1acad0e44edfd75e9464243202de8cd22e653d6a3a9d4f0883a780b8e7c"
+    },
+    {
+      "path": "tests/test_live.py",
+      "sourcePath": "tests/test_live.py",
+      "sha256": "643da091e35dd08b89806ab60c51089ad2533a8315d809527af6d65e062f1b8d"
+    },
+    {
+      "path": "tests/test_llm_helpers.py",
+      "sourcePath": "tests/test_llm_helpers.py",
+      "sha256": "9684b1ef5ee0559c1df0bd06c64a9a92507056826df77dced3a0de7fe468954a"
+    },
+    {
+      "path": "tests/test_llm_session.py",
+      "sourcePath": "tests/test_llm_session.py",
+      "sha256": "cd296b4d634e61a027e456e8f9e97e7f33e044e7b2b775558daf9ba944632d2b"
+    },
+    {
+      "path": "tests/test_loopback.py",
+      "sourcePath": "tests/test_loopback.py",
+      "sha256": "9547ef4d3c841d7c1965a9953858b07c0c205fdb0a5d1f515e03c1d975648ffe"
+    },
+    {
+      "path": "tests/test_mac_window.py",
+      "sourcePath": "tests/test_mac_window.py",
+      "sha256": "a21d6921a52adb937dc80086452446035a5c2dcd2dfaab829661a142b80ed2f4"
+    },
+    {
+      "path": "tests/test_mcp.py",
+      "sourcePath": "tests/test_mcp.py",
+      "sha256": "5efcdb29bc17d84986ded80533518a1aa64e0c923ff2835a8d040b0ac7e72fc7"
+    },
+    {
+      "path": "tests/test_mcp_bridge.py",
+      "sourcePath": "tests/test_mcp_bridge.py",
+      "sha256": "9482d65b654e5f7e11ead43300197633899823185fc85108f490973935ea774a"
+    },
+    {
+      "path": "tests/test_memory_goals.py",
+      "sourcePath": "tests/test_memory_goals.py",
+      "sha256": "484925bab70cb47245ad60ae4f14cc57aaba506e9c9795c766056ca1e42cd34a"
+    },
+    {
+      "path": "tests/test_memory_recall.py",
+      "sourcePath": "tests/test_memory_recall.py",
+      "sha256": "9e28ea5bb9a5b946b4874ebe1a98fda14b61e7d1478eb07e459468a45a0e8de8"
+    },
+    {
+      "path": "tests/test_memory_tidy.py",
+      "sourcePath": "tests/test_memory_tidy.py",
+      "sha256": "4f41a80b207cc69ee8b9e698daff37873739a5a5a9dbc9724fc0179c8922460c"
+    },
+    {
+      "path": "tests/test_model_defaults.py",
+      "sourcePath": "tests/test_model_defaults.py",
+      "sha256": "20f6d3bbd0643d573a8da4ad318d6bbcb46ed4fa401ee5470b60f1b5bec7840b"
+    },
+    {
+      "path": "tests/test_models_slots.py",
+      "sourcePath": "tests/test_models_slots.py",
+      "sha256": "e5dfbe3f741402d19935f21dd6c28059f6d13f2a67ac8ea37ad2187c6fe6a7aa"
+    },
+    {
+      "path": "tests/test_nudges_runtime.py",
+      "sourcePath": "tests/test_nudges_runtime.py",
+      "sha256": "4540932fedb52fff399f3ac46379a60e4583be105b78ac3c7f83450c8fb409d7"
+    },
+    {
+      "path": "tests/test_openai_chat_stream.py",
+      "sourcePath": "tests/test_openai_chat_stream.py",
+      "sha256": "b20b6bd5b06207be85ddcd9a7214dd19323f50c8a8a5f77039d2ae8a491e27de"
+    },
+    {
+      "path": "tests/test_openai_responses_stream.py",
+      "sourcePath": "tests/test_openai_responses_stream.py",
+      "sha256": "933f706a4f919a187e7c11369147641a16d31ebf506589cd35912dba343314ed"
+    },
+    {
+      "path": "tests/test_phone.py",
+      "sourcePath": "tests/test_phone.py",
+      "sha256": "14bca44d3fdd07a2fa5fea662ab8adeec59da1717d90fac3366c4250075245ef"
+    },
+    {
+      "path": "tests/test_providers_api.py",
+      "sourcePath": "tests/test_providers_api.py",
+      "sha256": "d98773fb4b51d6d7f4339e622c691faf2a6a84b859dc076c1626473d337997ea"
+    },
+    {
+      "path": "tests/test_readme_contributors.py",
+      "sourcePath": "tests/test_readme_contributors.py",
+      "sha256": "c55603a5e68db1792264235d0815fc30136e693d36a1736322850c74df1af36f"
+    },
+    {
+      "path": "tests/test_rebrand.py",
+      "sourcePath": "tests/test_rebrand.py",
+      "sha256": "be092c29579099ddce67720b3c12a1020dabeb56a3fd8ce748ba6ac78f9c1d32"
+    },
+    {
+      "path": "tests/test_release_docs.py",
+      "sourcePath": "tests/test_release_docs.py",
+      "sha256": "6f5ac267806d64192621f1ef28560177ba8bff91acb3c68ddd2d35fc99041625"
+    },
+    {
+      "path": "tests/test_reminders.py",
+      "sourcePath": "tests/test_reminders.py",
+      "sha256": "495100e78f490982f93ee029b143e6fce38be353211a02fa4b54b32a2aea4159"
+    },
+    {
+      "path": "tests/test_sandbox.py",
+      "sourcePath": "tests/test_sandbox.py",
+      "sha256": "2ef9603530738250acb33b66f946537a49581f96079b526a819b7770aae47a96"
+    },
+    {
+      "path": "tests/test_scheduled_outbox.py",
+      "sourcePath": "tests/test_scheduled_outbox.py",
+      "sha256": "1f633d28bbcad30cb54d9c81d06a9b5ed638240bb268ebb482076815f14e1ac1"
+    },
+    {
+      "path": "tests/test_search.py",
+      "sourcePath": "tests/test_search.py",
+      "sha256": "af47f5e32cb41391d94ae9d74f95667b496e994f66386609b2f5f935b4c66f4c"
+    },
+    {
+      "path": "tests/test_sentinel.py",
+      "sourcePath": "tests/test_sentinel.py",
+      "sha256": "0e19f663c0f513ef9a728a94365d09fd9345ef23abf3ffa467d5f96d057e095c"
+    },
+    {
+      "path": "tests/test_server.py",
+      "sourcePath": "tests/test_server.py",
+      "sha256": "27ca4e837f8f21111cf7b111f88e0ce42cacb697656f32116911f9caf6d9f182"
+    },
+    {
+      "path": "tests/test_skills.py",
+      "sourcePath": "tests/test_skills.py",
+      "sha256": "8083010c2049501e83eac75fd05ef7b7aceee13132c72b82e4a1c781c98c07af"
+    },
+    {
+      "path": "tests/test_sync.py",
+      "sourcePath": "tests/test_sync.py",
+      "sha256": "0a75c357ab91e0a467a752a76cb8c6d34dd4ef83bfc37a0d25c82546a4075138"
+    },
+    {
+      "path": "tests/test_tools.py",
+      "sourcePath": "tests/test_tools.py",
+      "sha256": "80e4126d9899f812f1d66b68cecf9ed98fb6b5edcd252af8f0c4b494ff45be78"
+    },
+    {
+      "path": "tests/test_triggers.py",
+      "sourcePath": "tests/test_triggers.py",
+      "sha256": "4cf53d61d5e20b315b6bd61ef4489a60fcfa5c2f6f11cef2ddd54c1bb455b292"
+    },
+    {
+      "path": "tests/test_vault.py",
+      "sourcePath": "tests/test_vault.py",
+      "sha256": "d280ae5c01329fedfd8da19bb7365fcac1c0c78d9b78d13187a862cce2fb1c9d"
+    },
+    {
+      "path": "tests/test_voice.py",
+      "sourcePath": "tests/test_voice.py",
+      "sha256": "db0f16a2bed21903fedd84544f1ae0c4fca2e896d1cad07e11a6d74e006006fc"
+    },
+    {
+      "path": "web/public/fonts/OFL.txt",
+      "sourcePath": "web/public/fonts/OFL.txt",
+      "sha256": "140d37233e7f3ce7313798befa9600893bcceaf41a55fa0fa5ad52f7f657a268"
+    },
+    {
+      "path": "cloud/.dockerignore",
+      "sourcePath": "cloud/.dockerignore",
+      "sha256": "9a9812373eb5af87987651cfb41e93c717d69cd91df3a348b53602eeb46e8f0e"
+    },
+    {
+      "path": "cloud/.env.example",
+      "sourcePath": "cloud/.env.example",
+      "sha256": "08c641a779493f651d14b881dae98e1722a83f9ac7d67ebc09acfc30e6434d33"
+    },
+    {
+      "path": "cloud/Caddyfile",
+      "sourcePath": "cloud/Caddyfile",
+      "sha256": "220f7a91365163501c75fe0f58a2695daaa65775619d9d15df0e55c77ce0b123"
+    },
+    {
+      "path": "cloud/Dockerfile",
+      "sourcePath": "cloud/Dockerfile",
+      "sha256": "726a33234770593efcc6df5f662769db64e2e0e6fa366d60208dd178550e6544"
+    },
+    {
+      "path": "cloud/README.md",
+      "sourcePath": "cloud/README.md",
+      "sha256": "2d57def96a06e527dc4d2d7f162a3621b3f473dbeb47e3bd7859cf54ce09f35c"
+    },
+    {
+      "path": "cloud/console/.gitignore",
+      "sourcePath": "cloud/console/.gitignore",
+      "sha256": "790e3169bc19b046fe55ba1da6d13b976c28363c8c00462a2195fe5faf260910"
+    },
+    {
+      "path": "cloud/console/eslint.config.js",
+      "sourcePath": "cloud/console/eslint.config.js",
+      "sha256": "5ae42983ae40e03e684310e8761dd64612b039d6e4d77644aaa621d09ca3d3f3"
+    },
+    {
+      "path": "cloud/console/index.html",
+      "sourcePath": "cloud/console/index.html",
+      "sha256": "b56efa5cc768024fdfaf94c094249e491a806a1e6196c76768e46e51e9095802"
+    },
+    {
+      "path": "cloud/console/package-lock.json",
+      "sourcePath": "cloud/console/package-lock.json",
+      "sha256": "c7ab141e724ade20e7afbacdb22daaa00d6a60c152e3445ea255c5ec5a75041f"
+    },
+    {
+      "path": "cloud/console/package.json",
+      "sourcePath": "cloud/console/package.json",
+      "sha256": "c2a4c56feaffd7f014a4ee4d1ec6e5350a72af989ef2be8ac9e6870371b33fa0"
+    },
+    {
+      "path": "cloud/console/src/App.tsx",
+      "sourcePath": "cloud/console/src/App.tsx",
+      "sha256": "86514b9e4a0b62c48ab4ebabdfd57c007a47f82a41fa30ecfa31775365edb62c"
+    },
+    {
+      "path": "cloud/console/src/lib/api.ts",
+      "sourcePath": "cloud/console/src/lib/api.ts",
+      "sha256": "42334a7c52b54fb84e4d44b365f85112a234dfe0f223ccfb326efd7f197841d8"
+    },
+    {
+      "path": "cloud/console/src/lib/client.ts",
+      "sourcePath": "cloud/console/src/lib/client.ts",
+      "sha256": "0201aa3d374fbd85ea28fcb9f07f641ba83d00eed306c65b3737ef9cf815206c"
+    },
+    {
+      "path": "cloud/console/src/lib/format.ts",
+      "sourcePath": "cloud/console/src/lib/format.ts",
+      "sha256": "c267286a5600c5f7903a69b850d341ba99cdcffc611e609834ed7dc46c3216ec"
+    },
+    {
+      "path": "cloud/console/src/lib/hooks.ts",
+      "sourcePath": "cloud/console/src/lib/hooks.ts",
+      "sha256": "c3b2fbb2a746c28ec0d3048583d1fef454885ec6e8bc62a45b49e461b7c4acc7"
+    },
+    {
+      "path": "cloud/console/src/lib/i18n.ts",
+      "sourcePath": "cloud/console/src/lib/i18n.ts",
+      "sha256": "01ff18487c0b9e6efee5d905d9830c6c4e72fd9d97acaa87c570a65bf119896a"
+    },
+    {
+      "path": "cloud/console/src/lib/locales.test.ts",
+      "sourcePath": "cloud/console/src/lib/locales.test.ts",
+      "sha256": "a1bc8b88bcde018bc9c1be339af68846f8c2fdeded49efa51404529909f5588b"
+    },
+    {
+      "path": "cloud/console/src/lib/locales.ts",
+      "sourcePath": "cloud/console/src/lib/locales.ts",
+      "sha256": "3866cc911135b537202edb82a67a5643efd33c21ff143c45c8816bba3d6725e0"
+    },
+    {
+      "path": "cloud/console/src/lib/places.ts",
+      "sourcePath": "cloud/console/src/lib/places.ts",
+      "sha256": "0df6558f386adf961bad11552cfb09fea6ffff809c8cc19a43cd11f19a619834"
+    },
+    {
+      "path": "cloud/console/src/lib/router.ts",
+      "sourcePath": "cloud/console/src/lib/router.ts",
+      "sha256": "352d557bfc63b5e0bb4e0ae6d294dc91d42ff87a2c53dacf65521108d726ed46"
+    },
+    {
+      "path": "cloud/console/src/lib/types.ts",
+      "sourcePath": "cloud/console/src/lib/types.ts",
+      "sha256": "5afdfc1b80cf552f4ab80427170c10235371a43ba1479c1d164de36d975aff9f"
+    },
+    {
+      "path": "cloud/console/src/main.tsx",
+      "sourcePath": "cloud/console/src/main.tsx",
+      "sha256": "c218ac01de9e3e4b21915551e85a3dda26ed12b34532402f79bf923829ff324e"
+    },
+    {
+      "path": "cloud/console/src/pages/Abuse.tsx",
+      "sourcePath": "cloud/console/src/pages/Abuse.tsx",
+      "sha256": "5fcccaec9189ad174d43acda006de15a808df1ac0bc7549e02f8af8eccd33664"
+    },
+    {
+      "path": "cloud/console/src/pages/AccountDrawer.tsx",
+      "sourcePath": "cloud/console/src/pages/AccountDrawer.tsx",
+      "sha256": "5437fee637109ac2fba0a734b4cfe847cb0533b03243bf2e2442534d14593aae"
+    },
+    {
+      "path": "cloud/console/src/pages/Activity.tsx",
+      "sourcePath": "cloud/console/src/pages/Activity.tsx",
+      "sha256": "87d1b9581a355c86945f9f24bb61538c838cf2f7c9cf2222cc73a066377e8631"
+    },
+    {
+      "path": "cloud/console/src/pages/AddressDrawer.tsx",
+      "sourcePath": "cloud/console/src/pages/AddressDrawer.tsx",
+      "sha256": "1c631991364395290fd001379b05158746563596d9161c48614f04ef04ec5ec5"
+    },
+    {
+      "path": "cloud/console/src/pages/Cohorts.tsx",
+      "sourcePath": "cloud/console/src/pages/Cohorts.tsx",
+      "sha256": "fab4468efcad3810f5d5b1e58dac65ca62472a6d5ccc5f5210c07c55ecfe4706"
+    },
+    {
+      "path": "cloud/console/src/pages/Controls.tsx",
+      "sourcePath": "cloud/console/src/pages/Controls.tsx",
+      "sha256": "09846e201ec5aca4df93070c899e3edc7a451c3f049f620acec35a96fcbca4e6"
+    },
+    {
+      "path": "cloud/console/src/pages/Data.tsx",
+      "sourcePath": "cloud/console/src/pages/Data.tsx",
+      "sha256": "7e84d29f6ab015d2ea6a2552796a431303b0390a0a8f8fb56aaed6498732c0fd"
+    },
+    {
+      "path": "cloud/console/src/pages/Demo.tsx",
+      "sourcePath": "cloud/console/src/pages/Demo.tsx",
+      "sha256": "355fadff2e0ae868328c431476e8864e8678d576667d30d04784db1d6e35a1f4"
+    },
+    {
+      "path": "cloud/console/src/pages/Hands.tsx",
+      "sourcePath": "cloud/console/src/pages/Hands.tsx",
+      "sha256": "d0b017898f49527924545c903df744b19b00fb6e26b8558b805e116fc3641311"
+    },
+    {
+      "path": "cloud/console/src/pages/Health.tsx",
+      "sourcePath": "cloud/console/src/pages/Health.tsx",
+      "sha256": "a322b0e7c80881ee6369090de03028a90af2d7402fda34c2f6a3629b46d368c8"
+    },
+    {
+      "path": "cloud/console/src/pages/Invites.tsx",
+      "sourcePath": "cloud/console/src/pages/Invites.tsx",
+      "sha256": "7cc75f1b40baaf81ca5008cded5d5d02633ed98884ee6715ec6f84c9ab48707e"
+    },
+    {
+      "path": "cloud/console/src/pages/Live.tsx",
+      "sourcePath": "cloud/console/src/pages/Live.tsx",
+      "sha256": "f9486b51c9a54f1066d020fcdd28aeb731b990b6f270596f951a664e2f3c69c1"
+    },
+    {
+      "path": "cloud/console/src/pages/Models.tsx",
+      "sourcePath": "cloud/console/src/pages/Models.tsx",
+      "sha256": "7422273026e54af219d6ffb8d23279a497db13d630868ea2bf25a732ecc06139"
+    },
+    {
+      "path": "cloud/console/src/pages/Overview.tsx",
+      "sourcePath": "cloud/console/src/pages/Overview.tsx",
+      "sha256": "a5eca00c4901bb3f0662d66f4996565a2b38c16b54ff1db744fa8caa23299d0e"
+    },
+    {
+      "path": "cloud/console/src/pages/People.tsx",
+      "sourcePath": "cloud/console/src/pages/People.tsx",
+      "sha256": "9462594f7eabb20a2987f0ee71c71e17d0169b6e7221e0011efb63d691065597"
+    },
+    {
+      "path": "cloud/console/src/pages/Places.tsx",
+      "sourcePath": "cloud/console/src/pages/Places.tsx",
+      "sha256": "09a45a5919eab27962b2a81190a85d2ef3557cf02e8502aeb7c3ff2c095ded42"
+    },
+    {
+      "path": "cloud/console/src/pages/Platforms.tsx",
+      "sourcePath": "cloud/console/src/pages/Platforms.tsx",
+      "sha256": "046f7c62bbecd063b74b6058e1150680bb88d6c048e580cb447381625e7baf85"
+    },
+    {
+      "path": "cloud/console/src/pages/Quality.tsx",
+      "sourcePath": "cloud/console/src/pages/Quality.tsx",
+      "sha256": "c6853b01eac0a21d8c31818c98d21486b7442e01bff474de48e14e801ec306ef"
+    },
+    {
+      "path": "cloud/console/src/pages/SampleCard.tsx",
+      "sourcePath": "cloud/console/src/pages/SampleCard.tsx",
+      "sha256": "7ca5ced091dc74dc812dc1fc46a8a9bc45218f828d24372c357772220319c606"
+    },
+    {
+      "path": "cloud/console/src/pages/Settings.tsx",
+      "sourcePath": "cloud/console/src/pages/Settings.tsx",
+      "sha256": "6193a1f5ca824678e5931742b3134a23f7442f4ab4c254503e3d7c4a22f2b467"
+    },
+    {
+      "path": "cloud/console/src/pages/Site.tsx",
+      "sourcePath": "cloud/console/src/pages/Site.tsx",
+      "sha256": "2f1e78cc03725b971063d7f50e320daaa69dcad1e71e35320edc2d476285fc62"
+    },
+    {
+      "path": "cloud/console/src/pages/Stats.tsx",
+      "sourcePath": "cloud/console/src/pages/Stats.tsx",
+      "sha256": "41bcdd4e274431f46c86be4692012486d45fff3792bc153d1c0b3dfe7ef61480"
+    },
+    {
+      "path": "cloud/console/src/pages/Usage.tsx",
+      "sourcePath": "cloud/console/src/pages/Usage.tsx",
+      "sha256": "acc282989cdc5f2dcda2ceab0815e4037fc7e01aa3d7abbc85ca33eb15e26c99"
+    },
+    {
+      "path": "cloud/console/src/pages/common.tsx",
+      "sourcePath": "cloud/console/src/pages/common.tsx",
+      "sha256": "0ef5ed193306d2f69d18682d0aa94a9ba99f7f71ad76ef7e1c813a3f27bd47ed"
+    },
+    {
+      "path": "cloud/console/src/styles.css",
+      "sourcePath": "cloud/console/src/styles.css",
+      "sha256": "a2e89d3c1eed1b6ccddec3ddf0420a8f0c5fbc01abd24bf4d1f61cf46a229c33"
+    },
+    {
+      "path": "cloud/console/src/ui/charts.tsx",
+      "sourcePath": "cloud/console/src/ui/charts.tsx",
+      "sha256": "4aed5b7c0024010623108b45453e68727d709f5084a96bf34ca9a7bb7db11977"
+    },
+    {
+      "path": "cloud/console/src/ui/primitives.tsx",
+      "sourcePath": "cloud/console/src/ui/primitives.tsx",
+      "sha256": "51085af4815e5fc021128a9d49faf986f87a5341826499de6f90e39bfae5028e"
+    },
+    {
+      "path": "cloud/console/src/ui/who.tsx",
+      "sourcePath": "cloud/console/src/ui/who.tsx",
+      "sha256": "49cc9fd48c8f4b6346eaaa53f588c5b4e2a4fe57e1372e41c54e0dcfed3162fe"
+    },
+    {
+      "path": "cloud/console/tsconfig.json",
+      "sourcePath": "cloud/console/tsconfig.json",
+      "sha256": "dec4ae6b5b19e458b77a0f44eee841f09a4781e41ab54b8ebfa26cc7b3ae9311"
+    },
+    {
+      "path": "cloud/console/vite.config.ts",
+      "sourcePath": "cloud/console/vite.config.ts",
+      "sha256": "cf034d0e6a4786922b464babe06bc7f5a92aaaf8762092411bcc6641bf046d76"
+    },
+    {
+      "path": "cloud/docker-compose.local.yml",
+      "sourcePath": "cloud/docker-compose.local.yml",
+      "sha256": "049a1c2937c7cfe52f2831ddf7f650a812c442147e7b3f9a91db2dbeea8544fd"
+    },
+    {
+      "path": "cloud/docker-compose.yml",
+      "sourcePath": "cloud/docker-compose.yml",
+      "sha256": "40cb0453497a092e588067ec1812f900443ccbcdf9a3ed6912a5440f954f7a6c"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/__init__.py",
+      "sourcePath": "cloud/nanomuse_cloud/__init__.py",
+      "sha256": "6db3276d2a40ab68c322eca169add9172b6a207d9d5be03e8b3a144a7755ac19"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/__main__.py",
+      "sourcePath": "cloud/nanomuse_cloud/__main__.py",
+      "sha256": "2b327e26c991acd96b62f4267dbf28b672d47e2dba4f18166a5c3346d86582ec"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/analytics.py",
+      "sourcePath": "cloud/nanomuse_cloud/analytics.py",
+      "sha256": "756318cd43fd1a6b4c4fcb089304f2cc95bad42469e369ea7d452abcf670d688"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/api.py",
+      "sourcePath": "cloud/nanomuse_cloud/api.py",
+      "sha256": "519ea244ebbede7c2d502f3cae30219b4d9bfc217b0660f3c8235198ac9f340b"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/catalog.py",
+      "sourcePath": "cloud/nanomuse_cloud/catalog.py",
+      "sha256": "a1ab19e7be65703fd0b318f55ac6daca4101d594829c433dbbb36ee6f9091db5"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/client.py",
+      "sourcePath": "cloud/nanomuse_cloud/client.py",
+      "sha256": "fadfb0dcf8eab254f5ad414faaf331a0a87f48f62fc7a4f6af59ad7362b42cd8"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/config.py",
+      "sourcePath": "cloud/nanomuse_cloud/config.py",
+      "sha256": "01df534be07b9bf59f117730fcbce03dbee7bd9a888a8dff7b94d33152768061"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/admin/admin.css",
+      "sourcePath": "cloud/nanomuse_cloud/console/admin/admin.css",
+      "sha256": "1588738deb308e1fa9c2ac1d2f46d86d6d0174bdd2f6d1762bdb80571f261f73"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/admin/admin.js",
+      "sourcePath": "cloud/nanomuse_cloud/console/admin/admin.js",
+      "sha256": "d9e4b88f72555b4351587ae1990133fbf0bcdb9beed98e65c52477c9ed77499e"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/admin/index.html",
+      "sourcePath": "cloud/nanomuse_cloud/console/admin/index.html",
+      "sha256": "9ef4fea090da826352d00a154b7504c1d21f4b16383dce54ce9bb21e1a56e21e"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/app.css",
+      "sourcePath": "cloud/nanomuse_cloud/console/app.css",
+      "sha256": "d61249f8d4918db055c6fdfb80145d591b9ba3927ee5f4cc9b92a5eda467bfa6"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/app.js",
+      "sourcePath": "cloud/nanomuse_cloud/console/app.js",
+      "sha256": "0753c576080ff8f298a580be00514acd29b52bc41a12446d52ff48c422e4cf56"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/icon.svg",
+      "sourcePath": "cloud/nanomuse_cloud/console/icon.svg",
+      "sha256": "efa2ccdb7f73f4f7bb7381c6c0d08268fe9e8aa093ef5724f5c08042f38bcf28"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/index.html",
+      "sourcePath": "cloud/nanomuse_cloud/console/index.html",
+      "sha256": "de6bd4a91b272b4fbd51954d5d5c67f329296090f770343fdf23ba1eeaa191fa"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/console/mark.svg",
+      "sourcePath": "cloud/nanomuse_cloud/console/mark.svg",
+      "sha256": "2b7a9be628a53b79d3c09c8dbb25be191a4665e30c06534c0d9e7a8f88d3549c"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/controls.py",
+      "sourcePath": "cloud/nanomuse_cloud/controls.py",
+      "sha256": "2f14b49adb9000880f6d2ecb03ef00c5294da7f00e851335cbc58c015b48ffbc"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/crypto.py",
+      "sourcePath": "cloud/nanomuse_cloud/crypto.py",
+      "sha256": "7d5ec3cad24ff54c5ca275d219954051c4b88a8a53122e4a79b909b18e1c1037"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/db.py",
+      "sourcePath": "cloud/nanomuse_cloud/db.py",
+      "sha256": "4fa6980c9f7bb002a4705938b7de166b1fc496fef042b70a249820d275002f99"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/geo.py",
+      "sourcePath": "cloud/nanomuse_cloud/geo.py",
+      "sha256": "36538fa07394572597d0d26723dcf98c3bbacd59afbcb1246c9113167c629f61"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/github_stats.py",
+      "sourcePath": "cloud/nanomuse_cloud/github_stats.py",
+      "sha256": "48e5dd2571ae1f335aaa0e64bdf1e418bc1a49e4ced6bb19737530b247a37497"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/hub.py",
+      "sourcePath": "cloud/nanomuse_cloud/hub.py",
+      "sha256": "e72bf6ecf6993b80b4452d6cfef329ca43dd8ee90efde5ba07984d9a0b9bc7ab"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/identifiers.py",
+      "sourcePath": "cloud/nanomuse_cloud/identifiers.py",
+      "sha256": "5bb13d5501dd1570fe66482edd9d7d0bfaf9fa2bdfc4093cc812ca6bcbc5e42d"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/nudges.py",
+      "sourcePath": "cloud/nanomuse_cloud/nudges.py",
+      "sha256": "a49d3f411fbe3431343b1b234652300fe2130a22ce7cf88ff0614fff3fdfa8ba"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/providers.json",
+      "sourcePath": "cloud/nanomuse_cloud/providers.json",
+      "sha256": "1aacd384e5a2f8af4fb65c156a237e3cdfc0b87c1dbef4065f1c82eb87484552"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/providers.py",
+      "sourcePath": "cloud/nanomuse_cloud/providers.py",
+      "sha256": "4e58159386547b64de26a365c12e811b81a946e5313dfb780195e4e3bb879dcd"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/senders.py",
+      "sourcePath": "cloud/nanomuse_cloud/senders.py",
+      "sha256": "1ac9759b1df981febaa16d71b8b0de4b2485552d2fbc9c66febb55675651e830"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/service.py",
+      "sourcePath": "cloud/nanomuse_cloud/service.py",
+      "sha256": "035ed1f014958932718240928618030bcc443b0635be15becff156a38b19fca1"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/stats.py",
+      "sourcePath": "cloud/nanomuse_cloud/stats.py",
+      "sha256": "c36d2a25eb3aeb8c602cc5dab9c1059bfca687d312adf4cb24f90939b5a8d0ec"
+    },
+    {
+      "path": "cloud/nanomuse_cloud/sync.py",
+      "sourcePath": "cloud/nanomuse_cloud/sync.py",
+      "sha256": "2fb23b29035a6fbd31392ff3d7c17b59cca45672365026ac880e82326c15b8d6"
+    },
+    {
+      "path": "cloud/pyproject.toml",
+      "sourcePath": "cloud/pyproject.toml",
+      "sha256": "c06edb33361e427cd5e4db39fa80ac18d79bcee2b1c2a341e1c9d159bd485e44"
+    },
+    {
+      "path": "cloud/tests/conftest.py",
+      "sourcePath": "cloud/tests/conftest.py",
+      "sha256": "6e2f6acd131701b7cfb3e10673f571f0ec9c82f4b2d99869f9568bdb42d36c56"
+    },
+    {
+      "path": "cloud/tests/test_accounts.py",
+      "sourcePath": "cloud/tests/test_accounts.py",
+      "sha256": "ee3aaf90fb803fe5bd0ef43408ba2fad2272f6dbb4e9b52bf8cf8034bc2994d1"
+    },
+    {
+      "path": "cloud/tests/test_allowance.py",
+      "sourcePath": "cloud/tests/test_allowance.py",
+      "sha256": "66858d6a53c9c7f2d431bf1f21d5a0e1e9b2e078bfaa23506e145e7833b9f3d7"
+    },
+    {
+      "path": "cloud/tests/test_analytics.py",
+      "sourcePath": "cloud/tests/test_analytics.py",
+      "sha256": "5cfd00fe81366405fb17350f72ad4ebd013d3f3487b3e83877e1d836c992616b"
+    },
+    {
+      "path": "cloud/tests/test_client.py",
+      "sourcePath": "cloud/tests/test_client.py",
+      "sha256": "2c7bab81d4118cb98b6c00ecb49b34c50023e746d9ebd97eadc20665b6a12cea"
+    },
+    {
+      "path": "cloud/tests/test_cloud.py",
+      "sourcePath": "cloud/tests/test_cloud.py",
+      "sha256": "b2e61e02b648111fa0fd1958358407efb7a7d2963bada3d1734d17a4e68f70b9"
+    },
+    {
+      "path": "cloud/tests/test_console.py",
+      "sourcePath": "cloud/tests/test_console.py",
+      "sha256": "b0824d5a911ec373023ee3aefca3ad9de02cb95539b67189d8fb66c506bfa7eb"
+    },
+    {
+      "path": "cloud/tests/test_controls.py",
+      "sourcePath": "cloud/tests/test_controls.py",
+      "sha256": "8aca2f1381cdcdd88e75ff5a7b1c088712703cc19b7443f3ecddcc2047e8f3a7"
+    },
+    {
+      "path": "cloud/tests/test_data_dir.py",
+      "sourcePath": "cloud/tests/test_data_dir.py",
+      "sha256": "6528a1034e748397c3a66ec98a716330145a227a32a72d214ec55f2b22bdd9de"
+    },
+    {
+      "path": "cloud/tests/test_github.py",
+      "sourcePath": "cloud/tests/test_github.py",
+      "sha256": "2ed4495a14ac27f8258129813ffff47c50334703cbf615fb5b1b4ecc2a5aac6f"
+    },
+    {
+      "path": "cloud/tests/test_hub.py",
+      "sourcePath": "cloud/tests/test_hub.py",
+      "sha256": "3f345a46396dc741196f824aa6caf1bcfe94feb8244f5078efc6d9d7d59b394e"
+    },
+    {
+      "path": "cloud/tests/test_nudges.py",
+      "sourcePath": "cloud/tests/test_nudges.py",
+      "sha256": "55726ea5e4acdf2188939b8725a074e6a1a9845c435c1adf838d21838e7b350f"
+    },
+    {
+      "path": "cloud/tests/test_operator_actions.py",
+      "sourcePath": "cloud/tests/test_operator_actions.py",
+      "sha256": "0bbcecc45c8d2b4b7ad61280d487592bc9c67092b85d699a3179da2ae452781d"
+    },
+    {
+      "path": "cloud/tests/test_providers.py",
+      "sourcePath": "cloud/tests/test_providers.py",
+      "sha256": "0c6bb37d4581c68301a68421f924fd7c05984d2cef8b73c36ba2fcb9df16be1a"
+    },
+    {
+      "path": "cloud/tests/test_review.py",
+      "sourcePath": "cloud/tests/test_review.py",
+      "sha256": "0cd6576cf429ae0495aaa6dbcef60bbba75b6acb2976dfc2c79481f282675080"
+    },
+    {
+      "path": "cloud/tests/test_senders.py",
+      "sourcePath": "cloud/tests/test_senders.py",
+      "sha256": "1cb9f15f10d67f930bf0ac2faf4b984df170f8dce41e63bebc63199f80ec475a"
+    },
+    {
+      "path": "cloud/tests/test_settings.py",
+      "sourcePath": "cloud/tests/test_settings.py",
+      "sha256": "96503b832eb2d315561fa2504e26de459c8487f079e4b2fc68235d241ef73706"
+    },
+    {
+      "path": "cloud/tests/test_stats.py",
+      "sourcePath": "cloud/tests/test_stats.py",
+      "sha256": "5d0568c5920e7d13efc46d98c4c6c2f28df5e284dd14a37e1302c47674658f00"
+    },
+    {
+      "path": "cloud/tests/test_sync.py",
+      "sourcePath": "cloud/tests/test_sync.py",
+      "sha256": "607624d3617c7a644b17fb763894507047d83745178611200fe059cd94cdcaef"
+    },
+    {
+      "path": "scripts/self-host.sh",
+      "sourcePath": "scripts/self-host.sh",
+      "sha256": "23da55c46677eacdc4dcc6257eedefedb134e468370f90160b3ea8d7f732977f"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+# Requires Docker Compose supporting env_file.format: raw. Run from cloud/.
+name: pilot-relay
+services:
+  relay:
+    build:
+      context: ..
+      dockerfile: cloud/Pilot.Dockerfile
+    image: pilot-relay:local
+    restart: unless-stopped
+    env_file:
+      - path: ./.env
+        format: raw
+    volumes:
+      - relay_data:/srv/pilot/data
+    expose: ["8787"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      CLOUD_DOMAIN: ${CLOUD_DOMAIN:?Initialize cloud/.env with a public domain first}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    volumes:
+      - ./Pilot.Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      relay:
+        condition: service_healthy
+volumes:
+  relay_data:
+  caddy_data:
+  caddy_config:

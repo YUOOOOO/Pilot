@@ -1,0 +1,18 @@
+# Dockerfile-specific ignore applies to the repository-root build context.
+**
+!cloud/
+!cloud/requirements.lock
+!cloud/pyproject.toml
+!cloud/README.md
+!cloud/nanomuse_cloud/
+!cloud/nanomuse_cloud/**
+!cloud/pilot-public/
+!cloud/pilot-public/**
+!scripts/
+!scripts/pilot-relay.py
+**/__pycache__/
+**/*.pyc
+**/.env
+**/.env.*
+cloud/data/
+.pilot-data/
