@@ -304,6 +304,19 @@ export class Relay {
     return { apiKey: String(body.api_key ?? ''), created: false, account: toAccount(body) }
   }
 
+  /** Create the account with a password and sign this device in (`POST /v1/auth/register`). */
+  async register(identifier: string, password: string, device: string, signal?: AbortSignal, invite = ''): Promise<SignIn> {
+    const res = await this.fetchImpl(`${this.origin}/v1/auth/register`, {
+      method: 'POST',
+      headers: JSON_HEADERS,
+      body: JSON.stringify({ identifier, password, device: device.slice(0, 80), ...(invite.trim() ? { invite: invite.trim() } : {}) }),
+      signal: signal ?? null,
+    })
+    if (!res.ok) await fail(res)
+    const body = (await res.json()) as Record<string, unknown>
+    return { apiKey: String(body.api_key ?? ''), created: Boolean(body.created), account: toAccount(body) }
+  }
+
   /** The account's invite code and link, and what inviting has brought (`GET /v1/me/invite`). */
   async invite(apiKey: string, signal?: AbortSignal): Promise<Invite> {
     const res = await this.fetchImpl(`${this.origin}/v1/me/invite`, { headers: this.auth(apiKey), signal: signal ?? null })

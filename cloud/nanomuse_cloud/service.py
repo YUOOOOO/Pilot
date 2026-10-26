@@ -829,6 +829,9 @@ class Cloud:
         invite: str = "",
         hub_device_id: str = "",
         hub_device_kind: str = "",
+        *,
+        must_create: bool = False,
+        password_hash: str = "",
     ) -> tuple[str, Caller, bool]:
         """An identifier that has just been proven (a code, the carrier's word) becomes a
         signed-in device: the account is made on first sight, a key is issued.
@@ -877,6 +880,12 @@ class Cloud:
                 self.db.set_contribute(account_id, True)
                 self.db.add_event(account_id, "contribute.default", "on")
             self._accept_invite(account_id, invite)
+            if password_hash:
+                self.db.set_password(account_id, password_hash)
+                self.db.add_event(account_id, "password.set")
+        elif must_create:
+            # Registration must not sign in to, or overwrite, an account that already exists.
+            raise CloudError(409, "account_exists", "That address already has an account; sign in with its password")
         elif account["disabled"]:
             raise CloudError(403, "account_disabled", "This account is disabled")
 
@@ -1186,6 +1195,40 @@ class Cloud:
             replace_hub_identity=bool(hub_device_id),
         )
         self.db.add_event(account["id"], "sign_in.password", device)
+        return key, caller
+
+    def register_password(
+        self,
+        ident: Identifier,
+        password: str,
+        device: str,
+        invite: str = "",
+        hub_device_id: str = "",
+        hub_device_kind: str = "",
+    ) -> tuple[str, Caller]:
+        """Create an account with a password and sign this device in. No code.
+
+        An address that already has an account is refused and no key is issued,
+        so registration cannot take over an existing account. Code routes stay
+        for a later verification step.
+        """
+        if not self.allowed(ident):
+            raise CloudError(403, "not_invited", "This relay is private; that address is not on its list")
+        self._check_new_password(password, ident.value)
+        if self._account_for(ident) is not None:
+            raise CloudError(409, "account_exists", "That address already has an account; sign in with its password")
+        key, caller, created = self.sign_in(
+            ident,
+            device,
+            "password",
+            invite,
+            hub_device_id,
+            hub_device_kind,
+            must_create=True,
+            password_hash=hash_password(password),
+        )
+        if not created:
+            raise CloudError(409, "account_exists", "That address already has an account; sign in with its password")
         return key, caller
 
     def _login_failures_from(self, ip: str) -> int:

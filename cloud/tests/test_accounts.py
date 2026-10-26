@@ -122,6 +122,24 @@ async def test_password_set_login_change_and_lockout():
     assert all("detail" in e and len(e["detail"]) <= 200 for e in events)
 
 
+async def test_register_with_password_then_login():
+    """A new address can be created with a password and signed in again, without a code."""
+    app, client, sender, up, cloud, settings = make()
+    r = await client.post("/v1/auth/register", json={"identifier": "new.user@example.com", "password": "short"})
+    assert r.status_code == 400 and r.json()["error"]["code"] == "password_short"
+    r = await client.post("/v1/auth/register", json={"identifier": "new.user@example.com", "password": "correct horse 1", "device": "desk"})
+    assert r.status_code == 200, r.text
+    created = r.json()
+    assert created["created"] is True and created["account"]["has_password"] is True
+    assert created["account"]["signed_in_via"] == "password"
+    r = await client.post("/v1/auth/register", json={"identifier": "new.user@example.com", "password": "another horse 2"})
+    assert r.status_code == 409 and r.json()["error"]["code"] == "account_exists"
+    r = await client.post("/v1/auth/login", json={"identifier": "new.user@example.com", "password": "correct horse 1", "device": "phone"})
+    assert r.status_code == 200, r.text
+    again = r.json()
+    assert again["api_key"] != created["api_key"] and again["account"]["id"] == created["account"]["id"]
+    assert again["created"] is False and again["account"]["signed_in_via"] == "password"
+
 async def test_a_disabled_account_is_told_so_only_with_the_right_password():
     """A probe at /v1/auth/login must not learn that an account exists and is disabled: a
     wrong password gets the answer any wrong password gets, the right one hears disabled."""

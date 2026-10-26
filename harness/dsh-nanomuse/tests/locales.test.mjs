@@ -21,6 +21,7 @@ const SAME_ON_PURPOSE = new Set([
   'nav',
   'brand',
   'chMain', // nexo is the fixed main-conversation name in both languages.
+  'pilotAgentPilot', // Pilot is the fixed agent-preset name in both languages.
   'railLabel',
   'navHarness',
   'handsAct',

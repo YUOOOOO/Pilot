@@ -5,6 +5,7 @@
     POST /v1/auth/code        {identifier}                      → 204 (400 phone_region: a number the SMS sender cannot reach; a disabled account gets the same 204 and no code is sent; 429 domain_limited: a new address of a domain at its day's sign-up limit)
     POST /v1/auth/verify      {identifier, code, device, invite?, device_id?, device_kind?} → {api_key, base_url, account, tokens, models}
     POST /v1/auth/login       {identifier, password, device, device_id?, device_kind?} → the same, for accounts that set a password
+    POST /v1/auth/register    {identifier, password, device, invite?, device_id?, device_kind?} → the same, and creates the account with that password (409 account_exists if it is already there; code routes stay for later)
     POST /v1/auth/password    {password, current?}              → 204 (set / change; "" + current removes)
     GET  /v1/me                                                 → account, tokens, spend (¥ spent / pool / left), invite, contribute, usage by kind, models, recent, nudges
     GET  /v1/nudges                                             → when the apps may ask for a star (0.18; public, cached an hour; the operator's policy over the defaults)
@@ -599,6 +600,31 @@ def create_app(
         )
         me = cloud.me(caller, client_place(request))
         return {"api_key": key, "created": False, **me}
+
+    @app.post("/v1/auth/register")
+    async def auth_register(request: Request) -> dict:
+        """Create the account with a password and sign this device in. Codes stay available, unused by the apps for now."""
+        body = await _json(request)
+        try:
+            ident = parse(str(body.get("identifier", "")))
+        except BadIdentifier as e:
+            raise CloudError(400, "bad_identifier", "Enter a mainland phone number or an e-mail address") from e
+        password = str(body.get("password", ""))
+        if not password:
+            raise CloudError(400, "password_required", "Enter the password")
+        device = str(body.get("device", ""))[:80]
+        invite = str(body.get("invite", ""))[:32]
+        key, caller = await asyncio.to_thread(
+            cloud.register_password,
+            ident,
+            password,
+            device,
+            invite,
+            str(body.get("device_id") or ""),
+            str(body.get("device_kind") or ""),
+        )
+        me = cloud.me(caller, client_place(request))
+        return {"api_key": key, "created": True, **me}
 
     @app.post("/v1/auth/password", status_code=204)
     async def auth_password(request: Request, caller: Caller = Depends(caller_dep)) -> Response:

@@ -56,6 +56,15 @@ function fakeRelay() {
         tokens: { unlimited: false, granted: 1000, used: 10, remaining: 990 },
       })
     }
+    if (req.url === '/v1/auth/register') {
+      if (body.password.length < 8) return json(400, { error: { code: 'password_short', message: 'Use at least 8 characters' } })
+      return json(200, {
+        api_key: 'sk-test-device-key',
+        created: true,
+        account: { id: 'acc_1', channel: 'email', hint: 'de***@example.com', member: false },
+        tokens: { unlimited: false, granted: 1000, used: 0, remaining: 1000 },
+      })
+    }
     if (req.url === '/v1/me/invite') {
       if (req.headers.authorization !== 'Bearer sk-test-device-key') return json(401, { error: { code: 'unauthorized', message: 'no' } })
       return json(200, { code: 'ABCD12', url: 'https://nanomuse.cn/i/ABCD12', invites: 2, bonus_cny: 5, earned_cny: 10 })
@@ -165,6 +174,15 @@ test('login posts the password and maps the key; a wrong one carries the relay c
   assert.equal(last.url, '/v1/auth/login')
   assert.deepEqual(last.body, { identifier: '13800138000', password: 'correct horse', device: 'desk' })
   await assert.rejects(relay.login('13800138000', 'wrong', 'desk'), (err) => err instanceof RelayError && err.status === 401 && err.code === 'password_wrong')
+})
+
+test('register posts the password and invite and maps a created account', async () => {
+  const signIn = await relay.register('dev-a@example.com', 'correct horse', 'desk', undefined, 'ABCD12')
+  assert.equal(signIn.apiKey, 'sk-test-device-key')
+  assert.equal(signIn.created, true)
+  const last = seen.at(-1)
+  assert.equal(last.url, '/v1/auth/register')
+  assert.deepEqual(last.body, { identifier: 'dev-a@example.com', password: 'correct horse', device: 'desk', invite: 'ABCD12' })
 })
 
 test('invite is a GET with the bearer key and reads code, link and bonus', async () => {

@@ -86,6 +86,10 @@ export function failureText(t: Translate, err: unknown): string {
   // the relay's sign-in refusals that have no sentence elsewhere in the client
   if (code === 'domain_limited') return t('errDomainLimited')
   if (code === 'channel_unsupported') return t('errChannelUnsupported')
+  if (code === 'bad_credentials') return t('errBadCredentials')
+  if (code === 'account_exists') return t('errAccountExists')
+  if (code === 'signup_closed') return t('errSignupClosed')
+  if (code === 'password_short' || code === 'password_weak' || code === 'password_long') return t('errPassword')
   return t('failed', { message: text || code || '?' })
 }
 

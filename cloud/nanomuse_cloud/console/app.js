@@ -12,8 +12,8 @@
   document.documentElement.lang = zh ? "zh-CN" : "en"; // the markup says zh-CN; the page follows the browser
   const T = zh ? {
     tagline: "你的每一台设备，都是你的 Muse。",
-    identifier: "中国大陆手机号或邮箱", smsRegion: "短信验证码只能发到中国大陆手机号。其他地区请用邮箱登录。", code: "验证码", password: "密码", sendCode: "发送验证码", signIn: "登录", another: "换一个账号",
-    byCode: "验证码登录", byPassword: "密码登录", forgot: "忘了密码？用验证码登录", show: "显示", hide: "隐藏",
+    identifier: "中国大陆手机号或邮箱", smsRegion: "短信验证码只能发到中国大陆手机号。其他地区请用邮箱登录。", code: "验证码", password: "密码", sendCode: "发送验证码", signIn: "登录", register: "注册", registering: "注册中…", another: "换一个账号",
+    byCode: "验证码登录", byPassword: "密码登录", forgot: "忘了密码？用验证码登录", show: "显示", hide: "隐藏", passwordHint: "用密码注册或登录。验证码以后再加。",
     codeSent: (m) => `验证码已发送，${m} 分钟内有效。`, relay: "服务器", fine: "登录后，这个页面能看到你账号下所有在线的设备，并让它们各自的 Muse 去做事。网页本身不操作任何设备。",
     devices: "设备", noDevices: "还没有设备接入。用同一个账号在手机上登录 nanoMuse，或在电脑上运行 nanoMuse Desktop，它们就会出现在这里。",
     online: "在线", offline: "离线", phone: "手机", computer: "电脑", web: "网页", thisTab: "这个页面",
@@ -43,13 +43,13 @@
     contribute: "数据控制", improve: "帮助改进 nanoMuse 的 AI 模型", contributeWhy: "开启后，你与 PilotCloud 模型对话的文字（你写的、它回答的，以及它选择调用的工具）会保存在服务器上，用来训练社区自己的开源模型。不保存系统提示（记忆、SOUL、指令）、工具返回的内容和图片，也不和你的身份放在一起。随时可以关闭，并删除已保存的内容。", contributeDefault: (on) => on ? "新账号默认开启。" : "新账号默认关闭。", contributeOn: "已开启", contributeOff: "已关闭", contributeCount: (n) => `已保存 ${n} 轮对话`, deleteSamples: "删除已保存的对话", deleteSamplesConfirm: "已保存的对话会从服务器上删除，不可恢复。", deleted: (n) => `已删除 ${n} 轮`, privacy: "隐私政策", syncTitle: "在我的设备之间同步对话", syncWhy: "对话文字会保存在 PilotCloud，让每台设备看到同样的对话。文件和图片只留在产生它们的设备上。", syncCount: (c, m) => `${c} 个对话 · ${m} 条消息`, syncEmpty: "还没有同步的对话", deleteSync: "删除同步的对话", deleteSyncConfirm: "保存在 PilotCloud 的对话文字会被删除，开关保持原样；各设备上的本地记录不受影响。", syncDeleted: "已删除", syncOffConfirm: "关闭后，保存在 PilotCloud 的对话文字会被删除，设备之间不再同步。",
     invite: "邀请朋友", inviteWhy: (b) => `朋友用你的邀请码注册并第一次使用后，你和对方的额度各 +¥${b}，不过期。`, inviteCode: "邀请码", inviteLink: "邀请链接", copy: "复制", copied: "已复制", invited: (n) => `已邀请 ${n} 人`, earned: (c) => `邀请带来 ¥${c}`,
     errors: { bad_identifier: "请输入中国大陆手机号或邮箱。", phone_region: "短信验证码目前只支持中国大陆手机号，海外用户请用邮箱登录。", channel_unsupported: "这台中转不发短信验证码，请用邮箱登录。", code_wrong: "验证码不对。", code_expired: "验证码已过期，请重新发送。", code_too_often: "发送太频繁，稍等几分钟。", not_invited: "这是一台私人中转，这个邮箱不在名单上。", signup_closed: "这台中转暂停了新用户注册，已有账号不受影响。请过些时候再试。", domain_limited: "这个邮箱域名今天在这台中转上的注册数已达上限，明天再试，或换一个邮箱。", allowance_exhausted: (e) => e.paused ? `共享模型的免费额度暂时停用，这段时间它们不回答。可以换成自己的 key${e.region === "cn" ? "（阿里云百炼一把 key 覆盖对话、手、画图和视频）" : "（海外先看 OpenRouter 或 OpenAI；百炼只给中国大陆身份注册）"}，或者用已经在付费的订阅登录（ChatGPT、Claude、Kimi，看客户端支持哪个）；登录、设备和剩余额度都保持不变。` : `免费额度已用完。邀请一位新用户（你和对方各 +¥${e.invite_bonus_cny ?? 5}），换成自己的 key${e.region === "cn" ? "（阿里云百炼一把 key 覆盖对话、手、画图和视频）" : "（海外先看 OpenRouter 或 OpenAI；百炼只给中国大陆身份注册）"}，或者用已经在付费的订阅登录（ChatGPT、Claude、Kimi，看客户端支持哪个）；登录和多设备功能不受影响。`, daily_cap: "今天的 token 配额用完了，明天恢复。", too_many_in_flight: "这个账号同时进行的请求太多了，等上一个结束再试。", rate_limited: "请求太频繁，稍等一下。", service_paused: "PilotCloud 被维护者暂停了，登录和数据都还在。请过些时候再试。", sync_paused: "对话同步暂停了，已保存的内容还在，各台设备各自照常使用。", hub_paused: "设备互联暂停了，每台设备各自照常使用。", account_deleted: "这个账号已被删除。重新登录会创建一个新账号。", send_failed: "验证码发送失败，请稍后再试。", bad_key: "登录已失效，请重新登录。", offline: "连不上服务器。",
-      bad_credentials: "邮箱或密码不对。", no_password: "这个账号还没设置密码，请用验证码登录。", locked: "密码试错太多次，请稍后再试或用验证码登录。", password_short: () => `密码至少 ${cfg.password_min_len} 位。`, password_long: "密码太长了。", password_weak: "密码太简单了。", password_wrong: "当前密码不对。", password_required: "请输入当前密码。", account_disabled: "这个账号已被停用。",
+      bad_credentials: "邮箱或密码不对。", account_exists: "这个账号已经存在，请直接登录。", no_password: "这个账号还没设置密码，请用验证码登录。", locked: "密码试错太多次，请稍后再试或用验证码登录。", password_short: () => `密码至少 ${cfg.password_min_len} 位。`, password_long: "密码太长了。", password_weak: "密码太简单了。", password_wrong: "当前密码不对。", password_required: "请输入当前密码。", account_disabled: "这个账号已被停用。",
       bad_request: "请求有误，请刷新页面再试。", too_large: "内容太大，服务器不接收。", no_session: "这个登录已经不存在了。", device_online: "这台设备现在在线，先在它上面退出登录。", sync_off: "这个账号关闭了对话同步。", invite_code: "暂时生成不了邀请码，请稍后再试。", not_found: "没有这个东西。" },
     email: "邮箱", hubPaused: "设备互联已暂停",
   } : {
     tagline: "Every device you own, a Muse of yours.",
-    identifier: "Mainland China phone number or e-mail", smsRegion: "Text-message codes reach mainland-China numbers only. Use an e-mail address instead.", code: "Verification code", password: "Password", sendCode: "Send code", signIn: "Sign in", another: "Use another account",
-    byCode: "With a code", byPassword: "With a password", forgot: "Forgot it? Sign in with a code", show: "Show", hide: "Hide",
+    identifier: "Mainland China phone number or e-mail", smsRegion: "Text-message codes reach mainland-China numbers only. Use an e-mail address instead.", code: "Verification code", password: "Password", sendCode: "Send code", signIn: "Sign in", register: "Create account", registering: "Creating account…", another: "Use another account",
+    byCode: "With a code", byPassword: "With a password", forgot: "Forgot it? Sign in with a code", show: "Show", hide: "Hide", passwordHint: "Register or sign in with a password. Verification codes come later.",
     codeSent: (m) => `A six-digit code is on its way; it is good for ${m} ${m === 1 ? "minute" : "minutes"}.`, relay: "Server", fine: "Once signed in, this page shows every device of your account that is online and lets each device's Muse do things. The page itself operates nothing.",
     devices: "Devices", noDevices: "No device yet. Sign in to nanoMuse on your phone with this account, or run nanoMuse Desktop on a computer, and they appear here.",
     online: "online", offline: "offline", phone: "phone", computer: "computer", web: "browser", thisTab: "this tab",
@@ -78,7 +78,7 @@
     contribute: "Data controls", improve: "Help improve nanoMuse's AI models", contributeWhy: "When this is on, the text of your chats with the PilotCloud models (what you wrote, what it answered and the tools it chose to call) is kept on the server to train the community's own open model. Not the system prompt (memory, SOUL, instructions), not what tools returned, not pictures, and never next to who you are. Turn it off at any time and delete what was kept.", contributeDefault: (on) => on ? "On by default for new accounts." : "Off by default for new accounts.", contributeOn: "On", contributeOff: "Off", contributeCount: (n) => `${n} turns kept`, deleteSamples: "Delete the kept conversations", deleteSamplesConfirm: "The kept conversations are removed from the server. This cannot be undone.", deleted: (n) => `${n} turns deleted`, privacy: "Privacy policy", syncTitle: "Sync conversations between my devices", syncWhy: "The text of your chats is kept on PilotCloud so every device shows the same conversations. Files and images stay on the device they were made on.", syncCount: (c, m) => `${c} conversations · ${m} messages`, syncEmpty: "Nothing synced yet", deleteSync: "Delete synced conversations", deleteSyncConfirm: "The text kept on PilotCloud is deleted; the switch stays as it is. What each device keeps locally is not touched.", syncDeleted: "Deleted", syncOffConfirm: "Turning this off deletes the text kept on PilotCloud and stops syncing between your devices.",
     invite: "Invite a friend", inviteWhy: (b) => `When a friend signs up with your code and makes a first request, each of you gets ¥${b} added to your allowance. It never expires.`, inviteCode: "Invite code", inviteLink: "Invite link", copy: "Copy", copied: "Copied", invited: (n) => `${n} invited`, earned: (c) => `¥${c} from invites`,
     errors: { bad_identifier: "Enter a mainland phone number or an e-mail address.", phone_region: "Codes reach mainland China numbers only for now; elsewhere, sign in with an e-mail address.", channel_unsupported: "This relay does not send text-message codes; sign in with an e-mail address.", code_wrong: "That code is not right.", code_expired: "That code has expired; send a new one.", code_too_often: "Too many codes; wait a few minutes.", not_invited: "This relay is private; that address is not on its list.", signup_closed: "New sign-ups are paused on this relay for now; existing accounts keep working. Try again later.", domain_limited: "This address's domain has reached today's sign-up limit on this relay; try again tomorrow or use another address.", allowance_exhausted: (e) => e.paused ? `The free allowance is paused for now, so the shared models are not answering. Bring your own key${e.region === "cn" ? " (Alibaba Cloud Bailian covers chat, hands, pictures and clips with one key)" : " (OpenRouter or OpenAI first outside mainland China; Alibaba Cloud Bailian only signs up accounts from the mainland)"}, or sign in with a plan you already pay for (ChatGPT, Claude or Kimi, where the app has the sign-in); your sign-in, your devices and what you have left stay as they are.` : `Your free allowance is used up. Invite a friend (+¥${e.invite_bonus_cny ?? 5} for each of you), bring your own key${e.region === "cn" ? " (Alibaba Cloud Bailian covers chat, hands, pictures and clips with one key)" : " (OpenRouter or OpenAI first outside mainland China; Alibaba Cloud Bailian only signs up accounts from the mainland)"}, or sign in with a plan you already pay for (ChatGPT, Claude or Kimi, where the app has the sign-in); sign-in and your devices keep working.`, daily_cap: "Today's token quota is used up; it comes back tomorrow.", too_many_in_flight: "Too many requests under way on this account; wait for the last one to finish.", rate_limited: "Too many requests; slow down a little.", service_paused: "PilotCloud is paused by its operator for now; your sign-in and your data are kept. Try again later.", sync_paused: "Conversation sync is paused for now; what is stored is kept and each device keeps working on its own.", hub_paused: "The device hub is paused for now; each device keeps working on its own.", account_deleted: "This account was deleted. Signing in again starts a new one.", send_failed: "The code could not be sent; try again shortly.", bad_key: "Your sign-in has expired; sign in again.", offline: "Cannot reach the server.",
-      bad_credentials: "That address or password is not right.", no_password: "This account has no password yet; sign in with a code.", locked: "Too many wrong passwords; try later or use a code.", password_short: () => `At least ${cfg.password_min_len} characters.`, password_long: "That password is too long.", password_weak: "That password is too easy.", password_wrong: "The current password is not right.", password_required: "Enter the current password.", account_disabled: "This account has been disabled.",
+      bad_credentials: "That address or password is not right.", account_exists: "That address already has an account. Sign in instead.", no_password: "This account has no password yet; sign in with a code.", locked: "Too many wrong passwords; try later or use a code.", password_short: () => `At least ${cfg.password_min_len} characters.`, password_long: "That password is too long.", password_weak: "That password is too easy.", password_wrong: "The current password is not right.", password_required: "Enter the current password.", account_disabled: "This account has been disabled.",
       bad_request: "The request was not understood; reload the page and try again.", too_large: "That is too large for the server to take.", no_session: "That sign-in no longer exists.", device_online: "That device is connected right now; sign out on it first.", sync_off: "Conversation sync is off for this account.", invite_code: "An invite code could not be made just now; try again shortly.", not_found: "There is no such thing." },
     email: "e-mail", hubPaused: "device hub paused",
   };
@@ -182,63 +182,51 @@
   // ── sign in view ─────────────────────────────────────────────────
   { const inv = new URLSearchParams(location.search).get("invite"); if (inv) LS.setItem("nm.invite", inv); }
   function renderSignIn() {
-    let identifier = LS.getItem("nm.identifier") || "", mode = LS.getItem("nm.mode") || "code", sent = false, busy = false, msg = "", bad = false, showPw = false;
+    let identifier = LS.getItem("nm.identifier") || "", busy = false, msg = "", bad = false, showPw = false;
     const draw = () => {
-      const byPw = mode === "password";
       app.replaceChildren(h("div", { class: "signin" }, h("div", { class: "card rise" },
         h("div", { class: "disc" }, h("img", { src: "mark.svg", alt: "" })),
         h("h1", {}, "Pilot"),
         h("p", { class: "sub" }, T.tagline),
-        h("div", { class: "seg" },
-          h("button", { class: byPw ? "" : "on", onclick: () => { mode = "code"; LS.setItem("nm.mode", mode); msg = ""; draw(); } }, T.byCode),
-          h("button", { class: byPw ? "on" : "", onclick: () => { mode = "password"; LS.setItem("nm.mode", mode); sent = false; msg = ""; draw(); } }, T.byPassword)),
         h("div", { class: "field" }, h("label", {}, T.identifier),
-          h("div", { class: "in" }, h("input", { id: "ident", type: "text", autocomplete: "username", inputmode: /^\s*[+\d]/.test(identifier) ? "tel" : "email", value: identifier, disabled: sent ? "" : null, oninput: (e) => { identifier = e.target.value; e.target.inputMode = /^\s*[+\d]/.test(identifier) ? "tel" : "email"; }, onkeydown: (e) => { if (e.key === "Enter") go(); } })),
-          // said up front, not only after a code never came: SMS reaches mainland numbers only (0.20)
-          !byPw && !sent ? h("p", { class: "fine", style: "margin:6px 0 0" }, T.smsRegion) : null),
-        byPw ? h("div", { class: "field" }, h("label", {}, T.password),
-          h("div", { class: "in" }, h("input", { id: "pw", type: showPw ? "text" : "password", autocomplete: "current-password", onkeydown: (e) => { if (e.key === "Enter") go(); } }),
-            h("button", { type: "button", onclick: () => { showPw = !showPw; const i = document.getElementById("pw"); if (i) i.type = showPw ? "text" : "password"; } }, showPw ? T.hide : T.show))) : null,
-        !byPw && sent ? h("div", { class: "field" }, h("label", {}, T.code),
-          h("div", { class: "in" }, h("input", { id: "code", type: "text", inputmode: "numeric", autocomplete: "one-time-code", maxlength: "6", onkeydown: (e) => { if (e.key === "Enter") go(); } }))) : null,
-        h("button", { class: "btn", disabled: busy ? "" : null, onclick: go }, byPw || sent ? T.signIn : T.sendCode),
-        !byPw && sent ? h("button", { class: "btn ghost", onclick: () => { sent = false; msg = ""; draw(); } }, T.another) : null,
-        byPw ? h("button", { class: "btn ghost", onclick: () => { mode = "code"; LS.setItem("nm.mode", mode); msg = ""; draw(); } }, T.forgot) : null,
+          h("div", { class: "in" }, h("input", { id: "ident", type: "text", autocomplete: "username", inputmode: /^\s*[+\d]/.test(identifier) ? "tel" : "email", value: identifier, oninput: (e) => { identifier = e.target.value; e.target.inputMode = /^\s*[+\d]/.test(identifier) ? "tel" : "email"; }, onkeydown: (e) => { if (e.key === "Enter") login(); } }))),
+        h("div", { class: "field" }, h("label", {}, T.password),
+          h("div", { class: "in" }, h("input", { id: "pw", type: showPw ? "text" : "password", autocomplete: "current-password", onkeydown: (e) => { if (e.key === "Enter") login(); } }),
+            h("button", { type: "button", onclick: () => { showPw = !showPw; const i = document.getElementById("pw"); if (i) i.type = showPw ? "text" : "password"; } }, showPw ? T.hide : T.show))),
+        h("p", { class: "fine", style: "margin:6px 0 0" }, T.passwordHint),
+        h("button", { class: "btn", disabled: busy ? "" : null, onclick: login }, T.signIn),
+        h("button", { class: "btn ghost", disabled: busy ? "" : null, onclick: register }, T.register),
         h("div", { class: "hint" + (bad ? " bad" : msg ? " ok" : "") }, msg),
         h("p", { class: "fine" }, T.fine, h("br"), h("b", {}, `${T.relay}: `), base),
       )));
-      const focus = document.getElementById(byPw ? (identifier ? "pw" : "ident") : sent ? "code" : "ident");
+      const focus = document.getElementById(identifier ? "pw" : "ident");
       if (focus) focus.focus();
     };
-    const go = () => { if (mode === "password") login(); else if (sent) verify(); else send(); };
-    async function send() {
-      identifier = identifier.trim(); if (!identifier) return;
-      busy = true; msg = ""; bad = false; draw();
-      try { await api("POST", "/v1/auth/code", { identifier }); LS.setItem("nm.identifier", identifier); sent = true; msg = T.codeSent(codeMinutes()); }
-      catch (e) { msg = errText(e); bad = true; }
-      busy = false; draw();
-    }
     function adopt(r) {
       key = r.api_key; hint = (r.account && r.account.hint) || identifier;
       LS.setItem("nm.key", key); LS.setItem("nm.hint", hint);
       renderMain(); connect();
     }
-    async function verify() {
-      const code = (document.getElementById("code") || {}).value || "";
-      if (code.replace(/\D/g, "").length !== 6) return;
-      busy = true; draw();
-      // a friend's code from the link (?invite=…) travels with the first sign-in; it counts for a new account only
-      const invite = new URLSearchParams(location.search).get("invite") || LS.getItem("nm.invite") || "";
-      try { adopt(await api("POST", "/v1/auth/verify", { identifier, code: code.replace(/\D/g, ""), device: deviceName(), invite })); LS.removeItem("nm.invite"); return; }
+    function fields() {
+      identifier = identifier.trim();
+      return { identifier, pw: (document.getElementById("pw") || {}).value || "" };
+    }
+    async function login() {
+      const { identifier: who, pw } = fields();
+      identifier = who;
+      if (!who || !pw) return;
+      busy = true; msg = ""; bad = false; draw();
+      try { LS.setItem("nm.identifier", who); adopt(await api("POST", "/v1/auth/login", { identifier: who, password: pw, device: deviceName() })); return; }
       catch (e) { msg = errText(e); bad = true; }
       busy = false; draw();
     }
-    async function login() {
-      identifier = identifier.trim();
-      const pw = (document.getElementById("pw") || {}).value || "";
-      if (!identifier || !pw) return;
+    async function register() {
+      const { identifier: who, pw } = fields();
+      identifier = who;
+      if (!who || !pw) return;
       busy = true; msg = ""; bad = false; draw();
-      try { LS.setItem("nm.identifier", identifier); adopt(await api("POST", "/v1/auth/login", { identifier, password: pw, device: deviceName() })); return; }
+      const invite = new URLSearchParams(location.search).get("invite") || LS.getItem("nm.invite") || "";
+      try { LS.setItem("nm.identifier", who); adopt(await api("POST", "/v1/auth/register", { identifier: who, password: pw, device: deviceName(), invite })); LS.removeItem("nm.invite"); return; }
       catch (e) { msg = errText(e); bad = true; }
       busy = false; draw();
     }

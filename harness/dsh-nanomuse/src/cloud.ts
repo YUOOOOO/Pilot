@@ -2316,6 +2316,11 @@ export default class NanomuseCloud extends Service {
     return this.serialize(async () => this.adopt(await this.relay.login(identifier.trim(), password, this.deviceName())))
   }
 
+  /** Create the account with a password. A friend's invite counts only when this call creates it. */
+  register(identifier: string, password: string, invite = ''): Promise<CloudStatus> {
+    return this.serialize(async () => this.adopt(await this.relay.register(identifier.trim(), password, this.deviceName(), undefined, invite)))
+  }
+
   /** A fresh key from either way in: wire the provider, remember the account, wear its look. */
   private async adopt(signIn: SignIn): Promise<CloudStatus> {
     // C10: a different account than the one this device last held (the sync state remembers it through a
@@ -3565,6 +3570,10 @@ export default class NanomuseCloud extends Service {
       if (req.method === 'POST' && route === '/login') {
         const body = await json(req)
         return send(res, 200, await this.login(String(body.identifier ?? ''), String(body.password ?? '')))
+      }
+      if (req.method === 'POST' && route === '/register') {
+        const body = await json(req)
+        return send(res, 200, await this.register(String(body.identifier ?? ''), String(body.password ?? ''), String(body.invite ?? '')))
       }
       if (req.method === 'GET' && route === '/invite') {
         const invite = await this.invite()

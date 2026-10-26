@@ -2,7 +2,7 @@
  * The first run, the way the phone does it (C4): the whole window, one page at a time,
  * three dots at the top and a gear to Settings. Welcome (the face, one line on what it is,
  * three feature rows, the free/open-source notice, "Sign in — free"); the sign-in itself
- * (a phone number or an e-mail, the six boxes of the code, or the password); a password
+ * (a phone number or an e-mail and a password; register if the account is new);
  * page for an account that was just created; "Which model answers?" (the Cloud model, or
  * a key of one's own); the own-key step (C11: the region's providers from the catalogue, a
  * key taken inline, the ChatGPT sign-in, *More ways*; Continue once one is in, Skip for now
@@ -22,7 +22,7 @@ import { createElement as h, Fragment, useCallback, useEffect, useRef, useState,
 import { createPortal } from 'react-dom'
 import { firstRunNeeded, stageOf, dotOf, type Stage } from '../firstrun.ts'
 import { call, type CloudStatus, type Translate, failureText } from './api.ts'
-import { useCloudConfig, type AccountSheet } from './AccountPage.tsx'
+import { useCloudConfig } from './AccountPage.tsx'
 import { Avatar } from './Avatar.tsx'
 import { BrandMark } from './BrandMark.tsx'
 import { gatedPermissions, openLink, type PermissionKind } from './bridge.ts'
@@ -54,7 +54,7 @@ export interface OnboardingActions {
 }
 
 /** The sign-in's own screens, shown over the Welcome stage. */
-type SignInView = 'identifier' | 'code' | 'password'
+type SignInView = 'password'
 
 /** How long Start may take to open the main chat before we stop waiting. */
 const START_MS = 12_000
@@ -78,27 +78,6 @@ function Spinner(): ReactNode {
   return h('div', { className: 'nm-spinner', role: 'progressbar', 'aria-busy': true })
 }
 
-/** Six boxes over one real input, so paste, IME and autofill all land in the same place. */
-function CodeBoxes({ value, onChange, disabled, label }: { value: string; onChange(next: string): void; disabled: boolean; label: string }): ReactNode {
-  const input = useRef<HTMLInputElement>(null)
-  // focus on mount, and again when a wrong code has been cleared (a disabled input loses focus)
-  useEffect(() => { if (!disabled) input.current?.focus() }, [disabled])
-  const digits = value.replace(/\D/g, '').slice(0, 6)
-  return h('div', { className: 'nm-code', onClick: () => input.current?.focus() },
-    h('input', {
-      ref: input,
-      className: 'nm-code-input',
-      value: digits,
-      inputMode: 'numeric',
-      autoComplete: 'one-time-code',
-      maxLength: 6,
-      disabled,
-      'aria-label': label,
-      onChange: (e: FormEvent<HTMLInputElement>) => onChange(e.currentTarget.value.replace(/\D/g, '').slice(0, 6)),
-    }),
-    Array.from({ length: 6 }, (_, i) =>
-      h('div', { key: i, className: `nm-code-box${i === Math.min(digits.length, 5) ? ' nm-code-caret' : ''}${digits[i] ? ' nm-code-filled' : ''}`, 'aria-hidden': true }, digits[i] ?? '')))
-}
 
 function link(url: string, label: string): ReactNode {
   return h('a', { href: url, onClick: (e: Event) => { e.preventDefault(); openLink(url) } }, label)
@@ -113,7 +92,6 @@ export function makeOnboarding(t: Translate, _actions: OnboardingActions) {
     const [decided, setDecided] = useState(false)
     const [signIn, setSignIn] = useState<SignInView | null>(null)
     const [identifier, setIdentifier] = useState('')
-    const [code, setCode] = useState('')
     const [password, setPassword] = useState('')
     // A friend's invite code (optional, with the six digits): both get credit once this account makes its first request.
     const [invite, setInvite] = useState('')
@@ -121,7 +99,6 @@ export function makeOnboarding(t: Translate, _actions: OnboardingActions) {
     const config = useCloudConfig()
     const [busy, setBusy] = useState(false)
     const [error, setError] = useState<string | undefined>()
-    const [resent, setResent] = useState(false)
     // a sign-in that created the account owes the password page; answered (or skipped) once
     const [fresh, setFresh] = useState(false)
     const [passwordSeen, setPasswordSeen] = useState(false)
@@ -209,50 +186,23 @@ export function makeOnboarding(t: Translate, _actions: OnboardingActions) {
         setBusy(false)
       }
     }
-    const sendCode = (event?: FormEvent) => {
-      event?.preventDefault()
-      void run(async () => {
-        await call('code', { identifier: identifier.trim() })
-        setCode('')
-        setSignIn('code')
-      })
-    }
-    const resend = () => {
-      void run(async () => {
-        await call('code', { identifier: identifier.trim() })
-        setResent(true)
-        window.setTimeout(() => setResent(false), 4000)
-      })
-    }
-    const signedIn = async (next: CloudStatus, byCode: boolean) => {
-      // an account that has no password yet was (most likely) created just now: offer one
-      if (byCode) {
-        const sheet = await call<AccountSheet>('me').catch(() => undefined)
-        setFresh(sheet?.account?.has_password === false)
-      }
+    const signedIn = (next: CloudStatus) => {
       setStatus(next)
       setSignIn(null)
-    }
-    const verify = (value: string) => {
-      if (busy || value.length !== 6) return
-      void run(async () => {
-        try {
-          const next = await call<CloudStatus>('verify', { identifier: identifier.trim(), code: value, invite: invite.trim().toUpperCase() })
-          setCode('')
-          await signedIn(next, true)
-        } catch (err: unknown) {
-          // a wrong code leaves empty boxes, not six digits to delete one by one
-          setCode('')
-          throw err
-        }
-      })
     }
     const login = (event: FormEvent) => {
       event.preventDefault()
       void run(async () => {
         const next = await call<CloudStatus>('login', { identifier: identifier.trim(), password })
         setPassword('')
-        await signedIn(next, false)
+        signedIn(next)
+      })
+    }
+    const register = () => {
+      void run(async () => {
+        const next = await call<CloudStatus>('register', { identifier: identifier.trim(), password, invite: invite.trim().toUpperCase() })
+        setPassword('')
+        signedIn(next)
       })
     }
     const setPasswordNow = (event: FormEvent) => {
@@ -284,48 +234,23 @@ export function makeOnboarding(t: Translate, _actions: OnboardingActions) {
     let body: ReactNode
     if (starting) {
       body = h('div', { className: 'nm-ob-center' }, h(Spinner))
-    } else if (signIn === 'identifier') {
-      // the sign-in pages are the app's own, so the app's mark is their hero (the face comes later: the welcome and "Meet" pages)
-      body = h('form', { className: 'nm-ob-center nm-ob-form', onSubmit: sendCode },
+    } else if (signIn === 'password') {
+      const canSubmit = !busy && identifier.trim().length >= 3 && password.length > 0
+      body = h('form', { className: 'nm-ob-center nm-ob-form', onSubmit: login },
         h(BrandMark, { size: 72, className: 'nm-fr-hero-mark' }),
         h('h1', { className: 'nm-ob-title' }, t('obSignInTitle')),
         h('input', { className: 'nm-field', value: identifier, placeholder: t('obIdentifier'), autoComplete: 'username', autoFocus: true, 'aria-label': t('obIdentifier'), onChange: (e: FormEvent<HTMLInputElement>) => setIdentifier(e.currentTarget.value) }),
-        // SMS codes reach mainland-China numbers only; everyone else gets an e-mail (the Settings sign-in says the same)
+        h('input', { className: 'nm-field', type: 'password', value: password, placeholder: t('obPassword'), autoComplete: 'current-password', 'aria-label': t('obPassword'), onChange: (e: FormEvent<HTMLInputElement>) => setPassword(e.currentTarget.value) }),
         h('p', { className: 'nm-ob-fine' }, t('identifierHint')),
-        h('p', { className: 'nm-ob-fine' }, t('obTermsLead'), link(PRIVACY_URL, t('obPrivacy')), t('obTermsEnd')),
-        error ? h('div', { className: 'nm-ob-error', role: 'alert' }, error) : null,
-        h(Pill, { type: 'submit', disabled: busy || identifier.trim().length < 3, className: 'nm-ob-wide' }, busy ? t('sending') : t('obContinue')),
-        h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setSignIn(null) } }, t('obBack')))
-    } else if (signIn === 'code') {
-      body = h('div', { className: 'nm-ob-center nm-ob-form' },
-        h(BrandMark, { size: 72, className: 'nm-fr-hero-mark' }),
-        h('h1', { className: 'nm-ob-title' }, t('obCodeTitle')),
-        h('p', { className: 'nm-ob-fine' },
-          t('obCodeSent', { identifier: identifier.trim() }), ' ',
-          h('button', { type: 'button', className: 'nm-ob-link nm-inline', disabled: busy, onClick: resend }, resent ? t('obResent') : t('obResend'))),
-        h(CodeBoxes, { value: code, disabled: busy, label: t('code'), onChange: (next) => { setCode(next); if (next.length === 6) verify(next) } }),
         inviteOpen
           ? h('input', { className: 'nm-field', value: invite, placeholder: t('obInviteCode'), autoComplete: 'off', autoCapitalize: 'characters', 'aria-label': t('obInviteCode'), onChange: (e: FormEvent<HTMLInputElement>) => setInvite(e.currentTarget.value.replace(/[^0-9a-zA-Z-]/g, '').slice(0, 16)) })
           : h('button', { type: 'button', className: 'nm-ob-link nm-inline', disabled: busy, onClick: () => setInviteOpen(true) }, t('obHaveInvite')),
         inviteOpen ? h('p', { className: 'nm-ob-fine' }, t('obInviteHint', { bonus: config.invitee_bonus_cny ?? 5 })) : null,
+        h('p', { className: 'nm-ob-fine' }, t('obTermsLead'), link(PRIVACY_URL, t('obPrivacy')), t('obTermsEnd')),
         error ? h('div', { className: 'nm-ob-error', role: 'alert' }, error) : null,
-        h(Pill, { disabled: busy || code.length !== 6, onClick: () => verify(code), className: 'nm-ob-wide' }, busy ? t('signingIn') : t('obNext')),
-        h('div', { className: 'nm-ob-links' },
-          h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setSignIn('password') } }, t('obOtherWay')),
-          h('span', { className: 'nm-ob-sep', 'aria-hidden': true }, '·'),
-          h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setCode(''); setSignIn('identifier') } }, t('obChangeIdentifier'))))
-    } else if (signIn === 'password') {
-      body = h('form', { className: 'nm-ob-center nm-ob-form', onSubmit: login },
-        h(BrandMark, { size: 72, className: 'nm-fr-hero-mark' }),
-        h('h1', { className: 'nm-ob-title' }, t('obPasswordTitle')),
-        h('p', { className: 'nm-ob-fine' }, identifier.trim()),
-        h('input', { className: 'nm-field', type: 'password', value: password, placeholder: t('obPassword'), autoComplete: 'current-password', autoFocus: true, 'aria-label': t('obPassword'), onChange: (e: FormEvent<HTMLInputElement>) => setPassword(e.currentTarget.value) }),
-        error ? h('div', { className: 'nm-ob-error', role: 'alert' }, error) : null,
-        h(Pill, { type: 'submit', disabled: busy || password.length === 0, className: 'nm-ob-wide' }, busy ? t('signingIn') : t('obSignIn')),
-        h('div', { className: 'nm-ob-links' },
-          h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setSignIn('code') } }, t('obUseCode')),
-          h('span', { className: 'nm-ob-sep', 'aria-hidden': true }, '·'),
-          h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setPassword(''); setSignIn('identifier') } }, t('obChangeIdentifier'))))
+        h(Pill, { type: 'submit', disabled: !canSubmit, className: 'nm-ob-wide' }, busy ? t('signingIn') : t('obSignIn')),
+        h(Pill, { type: 'button', ghost: true, disabled: !canSubmit, onClick: register, className: 'nm-ob-wide' }, busy ? t('obRegistering') : t('obRegister')),
+        h('button', { type: 'button', className: 'nm-ob-link', onClick: () => { setError(undefined); setPassword(''); setSignIn(null) } }, t('obBack')))
     } else if (stage === 'welcome') {
       // the app's mark, as on the phone (the face comes with the conversation, on the Meet page);
       // two doors: the account, or a key of one's own (the models page; the sign-in can come later)
@@ -333,7 +258,7 @@ export function makeOnboarding(t: Translate, _actions: OnboardingActions) {
         hero: h(BrandMark, { size: 104, className: 'nm-fr-hero-mark' }),
         title: t('frWelcomeTitle'),
         sub: t('frTagline'),
-        primary: { label: t('frSignIn'), onClick: () => { setError(undefined); setSignIn('identifier') } },
+        primary: { label: t('frSignIn'), onClick: () => { setError(undefined); setSignIn('password') } },
         secondary: { label: t('frWelcomeOwnKey'), onClick: () => { setModelsSkipped(false); choose('own') } },
         fine: config.allowance_cny ? `${t('frWelcomeFine')} ${t('obFreeAmount', { allowance: config.allowance_cny })}` : t('frWelcomeFine'),
         learnMore: PRIVACY_URL,

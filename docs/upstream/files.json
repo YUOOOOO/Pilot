@@ -32,8 +32,8 @@
     },
     {
       "path": "harness/dsh-nanomuse/src/client/Onboarding.tsx",
-      "sha256": "ee084a0f41a5d2718a3177870230ed4dc3aa43780e4a568a578e976b236a3e53",
-      "reason": "Defer UI setup without changing model readiness or permissions"
+      "sha256": "972cf594e8421801b74475cbca826c9e4a6dd6928aba97e5d66d5ee5e505a10d",
+      "reason": "Defer UI setup without changing model readiness or permissions; Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
     },
     {
       "path": "harness/dsh-nanomuse/src/client/index.ts",
@@ -42,8 +42,8 @@
     },
     {
       "path": "harness/dsh-nanomuse/src/client/locales.ts",
-      "sha256": "fb1f2b9d96c6ae854abf21481bc7cceaec13b30e764d3961e12b633f32f5e936",
-      "reason": "Pilot dictionaries including unified model tabs, restore, empty projects and fixed nexo main-conversation label; PilotCloud display name; Pilot agent-mode label"
+      "sha256": "0778d45de9d385e652ac06a6eba41f4495850d11cd7e5fd711dc5974d3c48825",
+      "reason": "Pilot dictionaries including unified model tabs, restore, empty projects and fixed nexo main-conversation label; PilotCloud display name; Pilot agent-mode label; Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
     },
     {
       "path": "harness/dsh-nanomuse/src/client/Sections.tsx",
@@ -92,8 +92,8 @@
     },
     {
       "path": "harness/dsh-nanomuse/tests/locales.test.mjs",
-      "sha256": "6849ec849a7f7ef2d4c28e49c8a59ecc6996ed8a1c03ad422ea94d9afebca89d",
-      "reason": "Register nexo as an intentional fixed proper name in both dictionaries; retain all existing locale checks"
+      "sha256": "c5a772e490396c0c280e948847047b6e0711e7a0843bc49e39af7d8aa2fcd607",
+      "reason": "Register nexo as an intentional fixed proper name in both dictionaries; retain all existing locale checks; Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
     },
     {
       "path": "cloud/.env.example",
@@ -142,8 +142,8 @@
     },
     {
       "path": "cloud/nanomuse_cloud/api.py",
-      "sha256": "cdaeaf5d8e38a52a9a0059ab63fa2b7313a6eb996e70e8501866cf328bd63cd2",
-      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+      "sha256": "d8cdea333cfbc1d0df4202e00556ba06d0f2c1b561ae6d85a90057e339b0026e",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged; Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
     },
     {
       "path": "cloud/nanomuse_cloud/console/admin/admin.js",
@@ -162,8 +162,8 @@
     },
     {
       "path": "cloud/nanomuse_cloud/console/app.js",
-      "sha256": "4b91b50a70069d75907c5dbe83f105b8babc9c9876644dc54050957c631832e5",
-      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+      "sha256": "1ff2ac42f808183452ef3c92aa837c5aff1c18ecf9e6c8e092f0290ff00d9974",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged; Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
     },
     {
       "path": "cloud/nanomuse_cloud/console/index.html",
@@ -177,8 +177,8 @@
     },
     {
       "path": "cloud/nanomuse_cloud/service.py",
-      "sha256": "35c01c7db90fdf9c72357acc8b976592e6c9d2fb251742bd98ea328900a2f6ff",
-      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+      "sha256": "322cf484222df9ab5d3aaddef9810a6a04f6f53671dddd444272eee3484b973e",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged; Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
     },
     {
       "path": "cloud/pyproject.toml",
@@ -237,8 +237,8 @@
     },
     {
       "path": "harness/dsh-nanomuse/src/cloud.ts",
-      "sha256": "bf65c777a59d0c3330a20cc35d4985f27f1daee68580e540f9a6e17862626ffd",
-      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged; delegated sessions use the renamed Pilot preset"
+      "sha256": "a02a7beb0c99dc9690ea634b0a9f6647b59215fb35b9c05caf0803a48c69a6e3",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged; delegated sessions use the renamed Pilot preset; Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
     },
     {
       "path": "harness/dsh-nanomuse/src/images.ts",
@@ -267,8 +267,8 @@
     },
     {
       "path": "harness/dsh-nanomuse/src/relay.ts",
-      "sha256": "ee191b7e140738accaa8d5bc00a3add738fe49f848cfbf6eab73659e1df58110",
-      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged"
+      "sha256": "8293236e9291349d60d6ac297fcd5b17eb7a5d3f1bf39f1b8a22b9e5c73bba99",
+      "reason": "Rename the user-facing nanoMuse Cloud name to PilotCloud; protocol identifiers unchanged; Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
     },
     {
       "path": "harness/dsh-nanomuse/src/video.ts",
@@ -314,6 +314,26 @@
       "path": "harness/desktop/resources/loading.html",
       "sha256": "3fdf291fe9033a74b940148d8cd22322ebc7565a1544003539a9b823325c6282",
       "reason": "Startup splash uses the Pilot mark and the name Pilot"
+    },
+    {
+      "path": "cloud/tests/test_accounts.py",
+      "sha256": "98a429d2ed4cda64211a894394c59e3e4e86fc33b103e73375b0cc737958c568",
+      "reason": "Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/SignIn.tsx",
+      "sha256": "836ccf69a2b22a6e36418b95735a4976639923967822602c1a03d5b65bde68ca",
+      "reason": "Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
+    },
+    {
+      "path": "harness/dsh-nanomuse/src/client/api.ts",
+      "sha256": "3cd1ef3d88b1af3b69f24ccce34f224b5cf7b7f664bbb829f15e1aea1f6195ef",
+      "reason": "Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
+    },
+    {
+      "path": "harness/dsh-nanomuse/tests/relay.test.mjs",
+      "sha256": "d3133181f1c2b6afea75d6d36129d8ce2ab72d50abb3da2622753bf87f5963d9",
+      "reason": "Password registration and sign-in; verification-code routes kept but not offered in the desktop or relay console"
     }
   ],
   "versions": {
