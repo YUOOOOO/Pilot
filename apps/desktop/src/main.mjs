@@ -46,8 +46,10 @@ async function start() {
     mkdirSync(home, { recursive: true });
     const patch = path.join(app.getPath('userData'), 'pilot-launch.patch.yml');
     const lifecycle = app.isPackaged ? path.join(`${app.getAppPath()}.unpacked`, 'dist/lifecycle.mjs') : path.join(root, 'apps/desktop/src/lifecycle.mjs');
-    const pluginPatch = readFileSync(path.join(bundle, 'cordis.patch.yml'), 'utf8');
-    writeFileSync(patch, pluginPatch.replace(/name:\s*['"]?dsh-pilot['"]?/g, `name: ${JSON.stringify(path.join(bundle, 'lib/index.js').replaceAll('\\', '/'))}`));
+    // PILOT_DISABLE_UI=1 时跳过 Pilot 客户端插件（用于对比/测试其它 UI 插件，可随时恢复）
+    const uiDisabled = process.env.PILOT_DISABLE_UI === '1';
+    const pluginPatch = uiDisabled ? '[]\n' : readFileSync(path.join(bundle, 'cordis.patch.yml'), 'utf8');
+    writeFileSync(patch, uiDisabled ? '[]\n' : pluginPatch.replace(/name:\s*['"]?dsh-pilot['"]?/g, `name: ${JSON.stringify(path.join(bundle, 'lib/index.js').replaceAll('\\', '/'))}`));
     host = new DshHost({ node, entry, home, patch, lifecycle, cwd: app.getPath('userData'), log });
     host.on('exit', info => {
       log(`Host exit: ${JSON.stringify(info)}`);
