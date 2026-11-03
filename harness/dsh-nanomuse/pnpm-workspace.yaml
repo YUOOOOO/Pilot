@@ -1,5 +1,0 @@
-allowBuilds:
-  bufferutil: false
-  esbuild: true
-  koffi: true
-  utf-8-validate: false

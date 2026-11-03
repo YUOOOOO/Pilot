@@ -1,0 +1,7 @@
+# Keep the official sidebar module for dependent plugins; Pilot shadows its shell.
+- id: ui-brand-official
+  disabled: true
+
+- insert:
+    - id: pilot-product
+      name: dsh-pilot

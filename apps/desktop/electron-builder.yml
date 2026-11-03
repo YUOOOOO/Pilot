@@ -1,0 +1,31 @@
+appId: dev.pilot.desktop
+productName: Pilot
+directories:
+  app: apps/desktop
+  output: release
+files:
+  - dist/**
+  - resources/**
+  - package.json
+asar: true
+asarUnpack:
+  - dist/lifecycle.mjs
+extraResources:
+  - from: .runtime
+    to: runtime
+    filter:
+      - '**/*'
+      - '!apps/**'
+      - '!node_modules/**'
+afterPack: scripts/after-pack.cjs
+win:
+  icon: apps/desktop/resources/icon.ico
+  target:
+    - target: nsis
+      arch: [x64]
+  signAndEditExecutable: false
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+npmRebuild: false

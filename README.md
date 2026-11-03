@@ -1,94 +1,70 @@
 # Pilot
 
-编程与电脑操作并重的通用 Agent。
+Pilot 使用独立 Electron 宿主管理官方 DeepSeek Harness CLI，产品界面通过 `packages/dsh-pilot` Bundle 提供。
 
-Pilot 基于 [nanoMuse](https://github.com/nano-muse/nanoMuse) 的核心执行代码和 DeepSeek Harness（DSH），复用上游行为，重新设计桌面布局，并增加按项目文件夹组织的开发会话。
-
-## 当前状态
-
-已按 nanoMuse 固定提交 `010e886822ce95a70df55a4d4c4a67b2e333cb66` 完成执行层提取及桌面界面适配，并按当前优先级进入服务器中继。现登记 641 个来源条目，包含 104 个中继文件；15 个适配文件另记哈希（含 nexo 固定名称文案测试）。执行循环、审批、停止、认证与 Hub 继续复用上游。
-
-当前开发窗口已使用 Pilot 的品牌、首页、双列导航和 nexo／会话／项目分组；会话内容区支持可拖拽排序、关闭和右键批量关闭的多标签，关闭标签保留会话历史。输入框可直接选择空白当前会话的智能体模式，已有历史后沿用 DSH 锁定限制。权限页通过右侧抽屉打开电脑、文件、麦克风、连接器和设备详情，侧栏隐藏对应五项及帮助/法律入口。菜单、搜索、设置、普通会话及标签交互已做页面检查。当前 bundle 构建及 370 项测试通过（12 平台跳过）；desktop 基线 152 项测试通过。完整设置页、项目目录恢复/隔离与跨端归属、模型及电脑操作、运行时和安装包仍待验收。详见 [界面适配记录](docs/PILOT-UI.md) 与 [执行层核对](docs/EXECUTION-LAYER.md)。
-
-最近修复：nexo 轨迹覆盖视图中同步聊天气泡挤压布局导致工具栏消失；真实窗口刷新后时长、轮次、调用工具恢复显示。bundle 构建、desktop 类型检查及 376 项测试通过（12 跳过），详见界面适配记录。
-
-nexo 的个人文档配置入口：悬停侧栏 nexo 行，点击右侧 `…`，选择 `IDENTITY.md`、`SOUL.md` 或 `MEMORY.md`；沿用原文档编辑器和自动保存。该行名称固定，不提供重命名。
-
-当前优先实施自有服务器中继，Android 与 iOS 随后。桌面完整执行和安装验收仍保留未完成项；Pi 编程插件为未来扩展，不阻塞首版。
-
-## 产品范围
-
-聊天菜单的第二列固定分为三组：
-
-| 分组 | 含义 |
-| --- | --- |
-| nexo | 对应 nanoMuse 的主要聊天，沿用主会话规则 |
-| 会话 | 对应 nanoMuse 的旁聊，沿用独立会话规则 |
-| 项目 | 新增项目文件夹入口，一个项目下可有多个开发会话 |
-
-首版三类会话均使用 DSH。聊天与编程会话都可使用上游支持的文件、终端和电脑操作能力，后续均须支持中继访问。
-
-桌面左侧采用两列：第一列为垂直图标菜单，第二列显示对应菜单内容。底部 `☰` 打开设置等操作菜单。消息、输入框、工具过程、权限审批和电脑操作轨迹沿用 nanoMuse 的交互，仅调整视觉与布局。
-
-## 开发原则
-
-- 复制并适配 nanoMuse 的核心源码，不从零重写已有执行逻辑。
-- DSH 保持为版本锁定的依赖，不复制重写其 Agent 循环。
-- 会话、同步、权限、停止、后台运行、配置及持久化行为以上游实际实现为准。
-- 仅补充项目归属、工作目录绑定、项目列表等必要逻辑。
-- 首版不新增完整 IDE、独立终端面板、实时桌面视频或自研会话同步协议。
-- 保留上游来源与版权声明，记录引入文件及本地修改。
-
-## 文档
-
-- [完整设计方案](docs/DESIGN.md)：已确认范围、页面结构和行为边界。
-- [实施与验收清单](docs/IMPLEMENTATION.md)：阶段、任务、验证及尚需技术核对的事项。
-- [上游来源](docs/UPSTREAM.md)：研究基线、待提取模块及引入记录。
-- [执行层核对](docs/EXECUTION-LAYER.md)：依赖闭包、工作区契约、测试命令、实际结果与阻塞。
-- [逐文件来源清单](docs/upstream/files.json)：原路径、固定提交和 SHA256。
-- [界面适配记录](docs/PILOT-UI.md)：Pilot 首轮界面、页面验证与项目功能边界。
-- [服务器中继](docs/RELAY.md)：本机启动、服务器部署、客户端接入、验证结果与剩余阻塞。
-- [Agent 开发约定](AGENTS.md)：后续开发必须遵守的范围和检查要求。
-- [变更记录](CHANGELOG.md)：已完成改动。
-
-## 本地开发
-
-已可启动提取后的桌面开发基线。在项目根目录执行：
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\start-dev.ps1
+```text
+apps/desktop/          Electron、启动页、preload、进程管理
+packages/dsh-pilot/    产品 Host / Client、品牌、首页和设置扩展
+runtime/manifest.json 固定 Node 与 DSH 版本
+scripts/              构建、运行时准备和桌面冒烟验证
 ```
 
-启动器编译桌面壳，使用独立 `.pilot-data/dev/` 保存 Electron、DSH 和 Python 运行数据。优先使用 PATH 中的 Node/nanomuse；本工具会话也能复用 scratch 环境，其他终端可用 `-NodePath` 和 `-RuntimePath` 指定可执行文件。当前窗口已显示 Pilot 首轮界面，完整项目执行和模型对话尚未验收。修改 bundle 后还需重新构建并暂存，启动器不自动刷新 `dsh/`。
+当前目标为 Windows x64，固定 Node 24.20.0、DSH 0.2.1-rc.5。开发环境需要 Node 与 npm。
 
-本次使用 Node 22.19.0、npm 10.9.3、pnpm 11.0.0、Python 3.12.12 的临时工具链完成检查。系统开发环境仍需配置，具体命令和验证边界见 [执行层核对](docs/EXECUTION-LAYER.md)。可用 Python 执行 `python scripts/verify_upstream.py` 重新核对导入完整性。
+## 开发运行
 
-导入代码仍保留 nanoMuse 的 appId、服务地址、更新地址和默认数据目录。完整启动验收前必须隔离数据目录；当前不能将上游默认 `npm start` 当作已适配的 Pilot 启动命令，也不应直接分发。
+```powershell
+npm ci
+npm run build
+npm run prepare:runtime
+npm run dev
+```
 
-凭据及本地配置不得提交到仓库。公开配置示例只能包含占位符。
+`prepare:runtime` 从 nodejs.org 下载 Node，按官方 SHA-256 清单校验，再使用根锁文件安装生产依赖到 `.runtime`。开发模式使用根工作区中的 DSH 和插件，默认使用 `.runtime/node.exe`。也可以直接使用已安装的独立 Node，跳过运行时准备：
 
-## 开源与许可证
+```powershell
+$env:PILOT_NODE_PATH = (Get-Command node).Source
+npm run dev
+```
 
-本仓库采用 GPL-3.0-or-later，见 [LICENSE](LICENSE)。上游来源及当前引入状态见 [NOTICE](NOTICE) 和 [docs/UPSTREAM.md](docs/UPSTREAM.md)。未来引入的第三方组件保留其原有许可证和声明。
+不要把 `PILOT_NODE_PATH` 指向 Electron。关闭窗口会隐藏到托盘；通过托盘或应用菜单中的“退出”完全结束应用。首启在官方设置中配置模型和凭据。
 
-模型设置已合并为单一入口，页内使用模型配置／供应商配置／用途分配 tabs。模型配置保留 DSH 参数及模型目录编辑；供应商配置沿用原接入流程；用途分配分别选择对话、操作屏幕、生成图片和生成视频模型。最新 bundle 构建/类型检查及 371 项测试通过，12 平台跳过。未用真实凭据测试新供应商或生成请求。当前来源适配总数为 13。
+## 验证与打包
 
-开发者控件常显后的会话标题栏已整理：隐藏重复标题及 nanoMuse 标识，原文件夹、更多操作与右侧栏按钮移至多标签右侧预留区，对话/轨迹仍可切换。已验证正常/窄窗口布局与原按钮操作；构建及 371 项测试通过（12 平台跳过）。
+```powershell
+npm test
+npm run build
+npm run smoke
+npm run dist:win
+# 验证打包后的应用：
+node scripts/smoke.mjs release/win-unpacked/Pilot.exe
+```
 
-桌面窗口任务栏与系统托盘统一使用 Pilot 图标，Windows 打包图标引用对应多尺寸 ICO；当前运行实例已直接刷新图标，未重启 Host。图标源为 resources/pilot-icon.svg，可运行 `python scripts/build-pilot-icons.py`（Pillow）重新生成 PNG/ICO。desktop 编译及 152 项测试通过，安装包未生成或验收。
+`smoke` 在临时目录启动真实 Electron 和 DSH 两次，检查页面中的 Pilot 品牌及插件加载状态；不会使用已有 DSH 配置，也不会调用付费模型。运行结束会打印日志证据目录。若设置了 `PI_SCRATCH_DIR`，临时数据存入该目录。
 
-会话列表现保留所有空白会话和归档会话；归档标题变灰，点击保留归档状态，更多菜单提供恢复。项目为空时显示“还没有项目。点 + 打开一个项目。”。本轮构建/类型检查及 374 项测试通过、12 项跳过；真实窗口连续新建、归档后点击和菜单恢复验证通过，客户端已刷新。项目空提示以组件测试验证，未移除现有项目。来源适配仍为 14 项。
+Windows 安装包输出到 `release/`。运行时放在 ASAR 外，安装包携带 Node、DSH 与产品 Bundle，无需用户安装开发环境。首次构建需要下载构建工具与运行依赖。当前未配置签名证书。
 
-服务器中继现可本地运行，包含认证、设备 Hub、同步及远程调用转发，当前开发地址为 http://127.0.0.1:8787/app/。桌面和中继网页目前用密码注册和登录，验证码接口仍保留但界面不调用。服务端 255 项测试通过、1 项平台跳过，桌面相关 48 项测试通过；真实回环 HTTP/WebSocket 登录、双设备转发、隔离、重连和重启持久化已验证。公网服务器、TLS、真实验证码通道、真实 DSH 跨端执行及项目目录绑定尚未验收，部署步骤见 [服务器中继说明](docs/RELAY.md)。
+独立插件包可通过以下方式构建并安装到相同版本的 DSH：
 
-会话页现仅保留一个固定名称的 nexo 主会话入口，移除重复 nexo 分组标题和该行重命名入口；双击不可改名，普通及项目会话仍可重命名。构建/类型检查及 375 项测试通过（12 跳过），运行窗口已刷新核对。
+```powershell
+npm run build
+npm pack --workspace dsh-pilot --pack-destination $env:TEMP
+# 将实际生成的 tgz 路径传入：
+dsh plugin --profile web add <dsh-pilot-0.1.0.tgz>
+```
 
-设置导航已移除“图像与视频”；“钱包”和“安全存储”统一从“权限”页进入，以右侧抽屉展示原页面内容，原服务与操作保持不变。
+## 数据与架构边界
 
-设置高级组中的旧 Harness 汇总入口已统一隐藏，页面切换及重开设置后不再出现；原后台服务保持。
+Pilot 用户数据由 Electron `userData` 管理，包含：
 
-nexo 文档编辑器仅占侧栏右侧、顶部标签栏下方的内容区；随侧栏展开/收起调整边界，不再全屏遮挡导航。
+- `dsh-home/`：独立的 DSH 数据和 web Profile，不默认复用 `~/.dsh`。
+- `logs/pilot.log`：轮转日志，启动 URL 的认证 token 会脱敏。
+- `pilot-launch.patch.yml`：产品启动层，与用户 Profile patch 分开。
 
-通用设置已去除顶部账户卡片，原“使用情况”标题改为“通用”，保留用量信息。
+产品 Bundle 提供 VS Code 风格的三列工作台：最左侧为单列活动图标，中间为当前功能的菜单或项目/会话列表，右侧为聊天或页面内容。设置入口位于活动栏底部。Electron 使用无边框窗口、36px 可拖拽标题栏与原生窗口控制按钮。Pilot 保留官方工作区浏览器、设置和聊天能力，活动图标继续接纳兼容插件注册的入口。
 
-切换或新建会话时自动退出个人文档编辑器；文档头部和标签横向滚动区不再用于窗口拖动。原轮次快速导航恢复到会话内容左侧，至少两轮记录时显示，支持原预览与跳转。
+桌面桥接仅提供版本、目录选择、打开日志、重试与更新入口，验证调用方主窗口及来源。没有桥接的普通 Web 环境仍可使用产品 Bundle。
+
+当前更新入口会说明未配置发行源；尚不执行在线更新。上线前需配置实际发行仓库、签名与更新验证。聊天请求、会话持久化及工具执行复用 DSH，真实模型调用需要用户配置。
+
+更详细的启动与关闭机制见 [架构说明](docs/architecture.md)。

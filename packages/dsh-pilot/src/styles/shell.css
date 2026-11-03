@@ -1,0 +1,1554 @@
+/* Pilot 壳层 —— 结构与视觉都以 dsh-Mimir 的工作台为基准：
+   侧轨 = 品牌头 + 带文字的竖排导航 + 区块列表 + 底部操作区（Mimir `.side`）；
+   主区 = 28/34 内边距的内容井 + 视图头 + 统计芯片 + 纸卡（Mimir `.content`）。
+   颜色策略与 Mimir 一致：私有 --pilot-* 色板，并在自身子树内重染 --dsw-alias-*，
+   子树里任何只读宿主 token 的组件都自动跟上纸媒色；暗色孪生挂在
+   body[data-ds-dark-theme] 上。强调色由 Mimir 的焦糖换成 Pilot 的青绿。
+
+   结构钩子（.pilot-sidebar / .pilot-activitybar / .pilot-menu / .pilot-workspaces /
+   .pilot-menu-title / .pilot-new-session / .pilot-footer-settings）保持全局类名：
+   窗口标题栏 preload 与冒烟测试按这些名字取尺寸。 */
+
+/* ── 色板（浅色）：底色直接取宿主语义 token，插件不再给壳层染色 ──────── */
+.pilot-sidebar,
+.pilot-home {
+  color-scheme: light;
+  /* 主内容与菜单列 = 宿主 bg-base（#fff）；图标轨 = 宿主 sidebar-fill（#f9fafb） */
+  --pilot-paper: #fff;
+  --pilot-rail: #f9fafb;
+  --pilot-sheet: #fff;
+  /* 文字色阶：雅黑小字号偏细，主/次/弱三档都比默认更深一档保证可读 */
+  --pilot-ink: #15181c;
+  --pilot-ink2: #4b535c;
+  --pilot-ink3: #737c86;
+  --pilot-line: rgb(0 0 0 / 10%);
+  --pilot-line-soft: rgb(0 0 0 / 6%);
+  --pilot-accent: #0f766e;
+  --pilot-accent-strong: #0b5c56;
+  --pilot-accent-soft: color-mix(in srgb, var(--pilot-accent) 12%, transparent);
+  --pilot-seal: #bc4749;
+  --pilot-seal-soft: rgb(188 71 73 / 10%);
+  --pilot-glass: rgb(255 255 255 / 92%);
+  --pilot-edge: inset 0 1px 0 rgb(255 255 255 / 60%);
+  --pilot-shadow: 0 1px 2px rgb(0 0 0 / 4%), 0 6px 20px rgb(0 0 0 / 5%);
+  --pilot-shadow-lift: 0 1px 2px rgb(0 0 0 / 6%), 0 12px 28px rgb(0 0 0 / 8%);
+  --pilot-r-panel: 14px;
+  --pilot-ease: cubic-bezier(0.2, 0, 0, 1);
+  /* 统一字体：系统 UI 优先（拉丁更干净），中文回落到雅黑/苹方黑体 */
+  --pilot-font: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei UI', 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif;
+  --pilot-serif: var(--pilot-font);
+  --pilot-sans: var(--pilot-font);
+  --pilot-mono: ui-monospace, 'Cascadia Mono', 'Consolas', 'SF Mono', Menlo, 'Microsoft YaHei', '微软雅黑', monospace;
+
+  /* 宿主语义 token 就地重染：子树内的宿主组件跟着同一套中性色，强调色仍取青绿 */
+  --dsw-specific-menu: var(--pilot-sheet);
+  --dsw-alias-label-primary: var(--pilot-ink);
+  --dsw-alias-label-secondary: var(--pilot-ink2);
+  --dsw-alias-label-tertiary: var(--pilot-ink3);
+  --dsw-alias-border-l1: var(--pilot-line-soft);
+  --dsw-alias-border-l2: var(--pilot-line);
+  --dsw-alias-border-l3: rgb(0 0 0 / 14%);
+  --dsw-alias-interactive-bg-hover: rgb(0 0 0 / 5%);
+  --dsw-alias-markdown-code-block: rgb(0 0 0 / 5%);
+  --dsw-alias-button-primary-fill: var(--pilot-accent);
+  --dsw-alias-button-primary-hover: var(--pilot-accent-strong);
+  --dsw-alias-focus-border: var(--pilot-accent);
+  --dsw-alias-state-business-primary: var(--pilot-accent);
+  --dsw-font-mono: var(--pilot-mono);
+  --dsh-scrollbar-thumb: rgb(0 0 0 / 22%);
+  --dsh-scrollbar-thumb-hover: rgb(0 0 0 / 34%);
+}
+
+
+/* ── 纸媒色板（暗色孪生）：暖炭黑 + 淡青绿 ───────────────────────── */
+body[data-ds-dark-theme] .pilot-sidebar,
+body[data-ds-dark-theme] .pilot-home {
+  color-scheme: dark;
+  /* 暗色同样取宿主底色：内容/菜单 #151517，图标轨 #1b1b1c */
+  --pilot-paper: #151517;
+  --pilot-rail: #1b1b1c;
+  --pilot-sheet: #1b1b1c;
+  /* 暗色文字色阶同样提一档对比，雅黑小字号在深底上更清晰 */
+  --pilot-ink: #f2f4f7;
+  --pilot-ink2: #c4c9d0;
+  --pilot-ink3: #98a0a9;
+  --pilot-line: rgb(255 255 255 / 12%);
+  --pilot-line-soft: rgb(255 255 255 / 7%);
+  --pilot-accent: #7fb3a8;
+  --pilot-accent-strong: #9cc9bf;
+  --pilot-accent-soft: color-mix(in srgb, var(--pilot-accent) 18%, transparent);
+  --pilot-seal: #d08a7c;
+  --pilot-seal-soft: rgb(208 138 124 / 14%);
+  --pilot-glass: rgb(27 27 28 / 90%);
+  --pilot-edge: inset 0 1px 0 rgb(255 255 255 / 5%);
+  --pilot-shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 12px 32px rgb(0 0 0 / 30%);
+  --pilot-shadow-lift: 0 1px 2px rgb(0 0 0 / 40%), 0 18px 40px rgb(0 0 0 / 42%);
+  --dsw-specific-menu: var(--pilot-sheet);
+  --dsw-alias-label-primary: var(--pilot-ink);
+  --dsw-alias-label-secondary: var(--pilot-ink2);
+  --dsw-alias-label-tertiary: var(--pilot-ink3);
+  --dsw-alias-border-l1: var(--pilot-line-soft);
+  --dsw-alias-border-l2: var(--pilot-line);
+  --dsw-alias-border-l3: rgb(255 255 255 / 18%);
+  --dsw-alias-interactive-bg-hover: rgb(255 255 255 / 7%);
+  --dsw-alias-markdown-code-block: rgb(255 255 255 / 7%);
+  --dsw-alias-button-primary-fill: var(--pilot-accent);
+  --dsw-alias-button-primary-hover: var(--pilot-accent-strong);
+  --dsw-alias-focus-border: var(--pilot-accent);
+  --dsw-alias-state-business-primary: var(--pilot-accent);
+  --dsh-scrollbar-thumb: rgb(255 255 255 / 22%);
+  --dsh-scrollbar-thumb-hover: rgb(255 255 255 / 32%);
+}
+
+/* ── 强调色切换：data-accent 只覆盖 --pilot-accent / --pilot-accent-strong，
+   --pilot-accent-soft 与宿主的 dsw-alias-* 都引用 var(--pilot-accent)，自动跟随 ── */
+.pilot-sidebar[data-accent='blue'],
+.pilot-home[data-accent='blue'] {
+  --pilot-accent: #2563eb;
+  --pilot-accent-strong: #1d4ed8;
+}
+body[data-ds-dark-theme] .pilot-sidebar[data-accent='blue'],
+body[data-ds-dark-theme] .pilot-home[data-accent='blue'] {
+  --pilot-accent: #93b5ec;
+  --pilot-accent-strong: #a9c5f0;
+}
+
+.pilot-sidebar[data-accent='violet'],
+.pilot-home[data-accent='violet'] {
+  --pilot-accent: #7c3aed;
+  --pilot-accent-strong: #6d28d9;
+}
+body[data-ds-dark-theme] .pilot-sidebar[data-accent='violet'],
+body[data-ds-dark-theme] .pilot-home[data-accent='violet'] {
+  --pilot-accent: #b6a0f0;
+  --pilot-accent-strong: #c6b5f3;
+}
+
+.pilot-sidebar[data-accent='amber'],
+.pilot-home[data-accent='amber'] {
+  --pilot-accent: #d97706;
+  --pilot-accent-strong: #b45309;
+}
+body[data-ds-dark-theme] .pilot-sidebar[data-accent='amber'],
+body[data-ds-dark-theme] .pilot-home[data-accent='amber'] {
+  --pilot-accent: #e8bd72;
+  --pilot-accent-strong: #eecf94;
+}
+
+.pilot-sidebar[data-accent='rose'],
+.pilot-home[data-accent='rose'] {
+  --pilot-accent: #e11d48;
+  --pilot-accent-strong: #be123c;
+}
+body[data-ds-dark-theme] .pilot-sidebar[data-accent='rose'],
+body[data-ds-dark-theme] .pilot-home[data-accent='rose'] {
+  --pilot-accent: #f0a6b4;
+  --pilot-accent-strong: #f3bac5;
+}
+
+.pilot-sidebar[data-accent='graphite'],
+.pilot-home[data-accent='graphite'] {
+  --pilot-accent: #374151;
+  --pilot-accent-strong: #1f2937;
+}
+body[data-ds-dark-theme] .pilot-sidebar[data-accent='graphite'],
+body[data-ds-dark-theme] .pilot-home[data-accent='graphite'] {
+  --pilot-accent: #cbd5e1;
+  --pilot-accent-strong: #dde3ea;
+}
+
+/* 重置一律用 :where() 把作用域特异性降成 0，否则 `.pilot-home button`（0,1,1）
+   会压过 `.pilot-pill`（0,1,0）这类组件类，把内边距、字号、边框全吃掉。 */
+:where(.pilot-sidebar, .pilot-home) *,
+:where(.pilot-sidebar, .pilot-home) *::before,
+:where(.pilot-sidebar, .pilot-home) *::after {
+  box-sizing: border-box;
+}
+:where(.pilot-sidebar, .pilot-home) button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: inherit;
+  transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+:where(.pilot-sidebar, .pilot-home) button:disabled {
+  cursor: default;
+}
+:where(.pilot-sidebar, .pilot-home) :focus-visible {
+  outline: 2px solid var(--pilot-accent);
+  outline-offset: 2px;
+}
+
+/* ── 侧栏：图标轨（48px）+ 菜单列 + 内容区，VS Code 式三栏 ──────────── */
+.pilot-sidebar {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  font-family: var(--pilot-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--pilot-ink);
+  background: var(--pilot-rail);
+  -webkit-font-smoothing: antialiased;
+}
+/* 折叠时只隐藏菜单列，并把侧栏列宽从宿主的 56px 收到和图标轨一致的 48px，
+   否则收起后这一列会比展开时显得更宽 */
+.pilot-sidebar[data-collapsed='true'] .pilot-menu {
+  display: none;
+}
+.pilot-sidebar[data-collapsed='true'] .pilot-activitybar {
+  border-right: 0;
+}
+[class*='frame']:has(.pilot-sidebar[data-collapsed='true']) {
+  grid-template-columns: 48px minmax(0px, 1fr) minmax(0px, 0px) !important;
+}
+
+/* ── 图标轨 ───────────────────────────────────────────────────────── */
+.pilot-activitybar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 0;
+  padding: 0 0 2px;
+  overflow-y: auto;
+  scrollbar-width: none;
+  border-right: 1px solid var(--pilot-line-soft);
+  background: var(--pilot-rail);
+}
+.pilot-sidebar .pilot-activity {
+  position: relative;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 4px;
+  border-radius: 9px;
+  color: var(--pilot-ink3);
+}
+.pilot-sidebar .pilot-activity:hover {
+  color: var(--pilot-ink);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-sidebar .pilot-activity[aria-current='page'] {
+  color: var(--pilot-accent-strong);
+  background: var(--pilot-accent-soft);
+}
+.pilot-rail-sep {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 1px;
+  margin: 4px 0 8px;
+  background: var(--pilot-line-soft);
+}
+.pilot-activity-bottom {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.pilot-footer-settings {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+.pilot-footer-settings button {
+  border-radius: 9px !important;
+}
+.pilot-footer-settings button:hover {
+  color: var(--pilot-ink) !important;
+  background: var(--dsw-alias-interactive-bg-hover) !important;
+}
+
+/* ── 菜单列 ───────────────────────────────────────────────────────── */
+.pilot-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  padding: 8px 8px 10px;
+  background: var(--pilot-rail);
+  font-family: var(--pilot-sans);
+  font-size: 14px;
+}
+.pilot-menu-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding-left: 4px;
+  margin-bottom: 6px;
+}
+.pilot-menu-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-family: var(--pilot-sans);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0;
+  color: var(--pilot-ink2);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pilot-sidebar .pilot-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border: 1px solid var(--pilot-line);
+  border-radius: 8px;
+  background: var(--pilot-sheet);
+  color: var(--pilot-ink3);
+  box-shadow: var(--pilot-edge);
+}
+.pilot-sidebar .pilot-icon-button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--pilot-ink);
+}
+.pilot-workspaces,
+.pilot-page-list {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  min-width: 0;
+  /* 只允许纵向滚动：overflow-y:auto 会把 overflow-x 也算成 auto，从而冒出横向滚动条 */
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+.pilot-workspaces[hidden],
+.pilot-page-list[hidden] {
+  display: none;
+}
+.pilot-context-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.pilot-context-menu[hidden] {
+  display: none;
+}
+.pilot-sidebar .pilot-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  color: var(--pilot-ink2);
+}
+.pilot-sidebar .pilot-menu-item:hover {
+  color: var(--pilot-ink);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-sidebar .pilot-menu-item[aria-current='page'] {
+  color: var(--pilot-accent-strong);
+  font-weight: 600;
+  background: var(--pilot-accent-soft);
+}
+.pilot-menu-item .pilot-kbd {
+  margin-left: auto;
+}
+.pilot-sidebar[data-kbd='off'] .pilot-kbd {
+  display: none;
+}
+.pilot-sidebar svg {
+  flex-shrink: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pilot-sidebar button {
+    transition: none;
+  }
+}
+
+/* ── 主区：内容井 + 视图头 + 统计芯片 + 纸卡（Mimir `.content`） ───── */
+.pilot-home {
+  position: relative;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  font-family: var(--pilot-sans);
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--pilot-ink);
+  background: var(--pilot-paper);
+  -webkit-font-smoothing: antialiased;
+  /* 顶部留出 Electron 窗口按钮（最小化/最大化/关闭）的高度，避免内容压到按钮上 */
+  padding: 56px 34px 28px;
+}
+.pilot-home h1,
+.pilot-home h2,
+.pilot-home p {
+  margin: 0;
+  padding: 0;
+}
+.pilot-view {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+/* 视图头：左标题+副标题，右动作，底部一条发丝线 */
+.pilot-view-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 2px 2px 12px;
+  border-bottom: 1px solid var(--pilot-line-soft);
+}
+.pilot-view-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.pilot-view-eyebrow {
+  font-family: var(--pilot-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pilot-accent);
+}
+.pilot-view-title {
+  font-family: var(--pilot-serif);
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0;
+  color: var(--pilot-ink);
+}
+.pilot-view-title em {
+  font-style: normal;
+  color: var(--pilot-accent);
+}
+.pilot-view-sub {
+  max-width: 620px;
+  color: var(--pilot-ink2);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.pilot-view-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 2px;
+}
+
+/* 按钮：纸卡描边胶囊（Mimir `.btn` / `.btnPrimary`） */
+.pilot-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  height: 34px;
+  padding: 0 15px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 10px;
+  background: var(--pilot-sheet);
+  box-shadow: var(--pilot-edge);
+  color: var(--pilot-ink);
+  font-size: 13px;
+  white-space: nowrap;
+}
+.pilot-pill:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-pill:active {
+  transform: translateY(1px);
+}
+.pilot-pill:disabled {
+  opacity: 0.5;
+}
+.pilot-pill.is-primary {
+  border-color: transparent;
+  background: var(--pilot-accent);
+  color: var(--pilot-sheet);
+  box-shadow: var(--pilot-shadow);
+}
+.pilot-pill.is-primary:hover {
+  background: var(--pilot-accent-strong);
+}
+.pilot-pill.is-small {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+/* 统计芯片：一行四格，数字用强调色（Mimir `.statChips` / `.statChip`） */
+.pilot-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(110px, 1fr));
+  gap: 12px;
+}
+.pilot-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 14px 16px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 15px;
+  background: var(--pilot-sheet);
+  box-shadow: var(--pilot-edge), var(--pilot-shadow);
+}
+.pilot-stat-value {
+  color: var(--pilot-accent);
+  font-family: var(--pilot-mono);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+.pilot-stat-label {
+  color: var(--pilot-ink3);
+  font-size: 12px;
+}
+
+/* 三列纸卡（Mimir 的卡片网格） */
+.pilot-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+  gap: 12px;
+}
+.pilot-card {
+  padding: 20px 20px 22px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 18px;
+  background: var(--pilot-sheet);
+  box-shadow: var(--pilot-edge), var(--pilot-shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.pilot-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--pilot-edge), var(--pilot-shadow-lift);
+}
+.pilot-step {
+  display: block;
+  font-family: var(--pilot-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pilot-accent);
+  font-variant-numeric: tabular-nums;
+}
+.pilot-card h2 {
+  margin: 10px 0 6px;
+  font-family: var(--pilot-serif);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.pilot-card p {
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--pilot-ink2);
+}
+
+/* 纸卡面板：桌面工具（Mimir `.overviewCard`） */
+.pilot-panel {
+  padding: 22px 24px 24px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 18px;
+  background: var(--pilot-sheet);
+  box-shadow: var(--pilot-edge), var(--pilot-shadow);
+}
+.pilot-panel h2 {
+  font-family: var(--pilot-serif);
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.pilot-panel p {
+  margin-top: 8px;
+  max-width: 640px;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--pilot-ink2);
+}
+.pilot-panel .pilot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.pilot-status {
+  min-height: 20px;
+  font-family: var(--pilot-mono);
+  font-size: 11.5px;
+  line-height: 20px;
+  color: var(--pilot-ink2);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pilot-status:not(:empty) {
+  padding-left: 10px;
+  border-left: 2px solid var(--pilot-accent);
+}
+.pilot-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--pilot-line-soft);
+  font-family: var(--pilot-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.02em;
+  color: var(--pilot-ink3);
+}
+.pilot-meta b {
+  font-weight: 600;
+  color: var(--pilot-ink2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* 窄屏：统计芯片两列、视图头竖排（Mimir 的 ≤900 降级） */
+@media (max-width: 900px) {
+  .pilot-home {
+    padding: 20px 18px;
+  }
+  .pilot-stats {
+    grid-template-columns: repeat(2, minmax(100px, 1fr));
+  }
+  .pilot-view-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pilot-sidebar button,
+  .pilot-home button,
+  .pilot-card {
+    transition: none;
+  }
+  .pilot-card:hover {
+    transform: none;
+  }
+}
+
+/* ── 页面骨架：分组标签 / 快捷键提示 / 命令面板 / 信息行 ─────────────── */
+.pilot-nav-group {
+  flex: 0 0 auto;
+  padding: 8px 8px 3px 14px;
+  font-family: var(--pilot-mono);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--pilot-ink3);
+}
+.pilot-nav-group:first-child {
+  padding-top: 2px;
+}
+.pilot-sidebar .pilot-activity-label {
+  flex: 1;
+}
+.pilot-kbd {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 5px;
+  background: var(--pilot-sheet);
+  font-family: var(--pilot-mono);
+  font-size: 9.5px;
+  font-weight: 500;
+  line-height: 14px;
+  color: var(--pilot-ink3);
+}
+.pilot-activity-kbd {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.pilot-sidebar .pilot-activity:hover .pilot-activity-kbd,
+.pilot-sidebar .pilot-activity[aria-current='page'] .pilot-activity-kbd {
+  opacity: 1;
+}
+
+.pilot-palette-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 11vh 16px 16px;
+  background: rgb(24 20 13 / 32%);
+  backdrop-filter: blur(4px) saturate(0.9);
+  animation: pilot-fade 0.14s ease both;
+}
+.pilot-palette {
+  width: min(520px, 92vw);
+  max-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--pilot-line);
+  border-radius: var(--pilot-r-panel);
+  background: var(--pilot-sheet);
+  box-shadow: 0 24px 60px rgb(33 30 25 / 28%), var(--pilot-edge);
+  animation: pilot-pop 0.22s cubic-bezier(0.2, 1.1, 0.4, 1) both;
+}
+.pilot-palette-input {
+  flex: 0 0 auto;
+  height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-bottom: 1px solid var(--pilot-line-soft);
+  background: transparent;
+  font-family: var(--pilot-sans);
+  font-size: 14px;
+  color: var(--pilot-ink);
+  outline: 0;
+}
+.pilot-palette-input::placeholder {
+  color: var(--pilot-ink3);
+}
+.pilot-palette-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 6px;
+  margin: 0;
+  list-style: none;
+}
+.pilot-palette-row {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  color: var(--pilot-ink2);
+  text-align: left;
+}
+.pilot-palette-row.is-on {
+  background: var(--pilot-accent-soft);
+  color: var(--pilot-ink);
+}
+.pilot-palette-title {
+  font-family: var(--pilot-serif);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--pilot-ink);
+}
+.pilot-palette-hint {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--pilot-ink3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pilot-palette-empty {
+  padding: 18px 12px;
+  color: var(--pilot-ink3);
+  font-size: 12.5px;
+  text-align: center;
+}
+@keyframes pilot-fade {
+  from { opacity: 0; }
+}
+@keyframes pilot-pop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.99); }
+}
+
+.pilot-rows {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--pilot-line);
+  border-radius: 16px;
+  background: var(--pilot-sheet);
+  box-shadow: var(--pilot-edge), var(--pilot-shadow);
+  overflow: hidden;
+}
+.pilot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--pilot-line-soft);
+  font-size: 13px;
+}
+.pilot-row:last-child {
+  border-bottom: 0;
+}
+.pilot-row-label {
+  color: var(--pilot-ink3);
+  font-size: 12.5px;
+}
+.pilot-row-value {
+  font-family: var(--pilot-mono);
+  font-size: 12px;
+  color: var(--pilot-ink);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── 设置页控件 + 偏好开关 ──────────────────────────────────────────── */
+.pilot-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 880px;
+}
+.pilot-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.pilot-panel-head-text {
+  min-width: 0;
+}
+.pilot-panel-head p {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--pilot-ink3);
+}
+.pilot-panel-actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pilot-setrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 11px 0;
+  border-top: 1px solid var(--pilot-line-soft);
+}
+.pilot-panel-head + .pilot-setrow {
+  border-top: 0;
+}
+.pilot-setrow-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pilot-setrow-title {
+  font-size: 13px;
+  color: var(--pilot-ink);
+}
+.pilot-setrow-hint {
+  font-size: 11.5px;
+  line-height: 1.55;
+  color: var(--pilot-ink3);
+}
+.pilot-setrow-control {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.pilot-setrow-value {
+  font-family: var(--pilot-mono);
+  font-size: 11.5px;
+  color: var(--pilot-ink2);
+  font-variant-numeric: tabular-nums;
+}
+.pilot-sidebar .pilot-switch,
+.pilot-home .pilot-switch {
+  position: relative;
+  width: 38px;
+  height: 22px;
+  flex: none;
+  border: 1px solid var(--pilot-line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--pilot-ink) 14%, transparent);
+  transition: background-color 0.18s var(--pilot-ease), border-color 0.18s var(--pilot-ease);
+}
+.pilot-switch-dot {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--pilot-sheet);
+  box-shadow: 0 1px 2px rgb(33 30 25 / 28%);
+  transition: transform 0.18s var(--pilot-ease);
+}
+.pilot-sidebar .pilot-switch.is-on,
+.pilot-home .pilot-switch.is-on {
+  border-color: transparent;
+  background: var(--pilot-accent);
+}
+.pilot-switch.is-on .pilot-switch-dot {
+  transform: translateX(16px);
+}
+.pilot-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: rgb(33 30 25 / 5%);
+}
+.pilot-home .pilot-seg button {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--pilot-ink3);
+}
+.pilot-home .pilot-seg button:hover {
+  color: var(--pilot-ink);
+}
+.pilot-home .pilot-seg button.is-on {
+  background: var(--pilot-sheet);
+  color: var(--pilot-ink);
+  box-shadow: var(--pilot-edge), 0 1px 2px rgb(74 59 50 / 12%);
+}
+
+/* 偏好：隐藏快捷键提示 */
+.pilot-sidebar[data-kbd='off'] .pilot-activity-kbd {
+  display: none;
+}
+
+/* 偏好：关闭动效 */
+.pilot-home[data-motion='off'] *,
+.pilot-home[data-motion='off'] *::before,
+.pilot-home[data-motion='off'] *::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* ── 设置弹窗（齿轮）：左侧分组，右侧正文；宿主分组直接渲染 settings.section ── */
+.pilot-settings-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 24px;
+  background: rgb(15 17 20 / 32%);
+  backdrop-filter: blur(3px);
+  animation: pilot-fade 0.14s ease both;
+}
+.pilot-settings-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(880px, 94vw);
+  height: min(640px, 86vh);
+  overflow: hidden;
+  border: 1px solid var(--pilot-line);
+  border-radius: 16px;
+  background: var(--pilot-paper);
+  box-shadow: 0 24px 64px rgb(0 0 0 / 22%), var(--pilot-edge);
+  animation: pilot-pop 0.2s cubic-bezier(0.2, 1.1, 0.4, 1) both;
+}
+.pilot-settings-head {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--pilot-line-soft);
+}
+.pilot-settings-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--pilot-ink);
+}
+.pilot-settings-body {
+  display: grid;
+  grid-template-columns: 172px minmax(0, 1fr);
+  flex: 1;
+  min-height: 0;
+}
+.pilot-settings-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 8px;
+  overflow-y: auto;
+  border-right: 1px solid var(--pilot-line-soft);
+  background: var(--pilot-rail);
+}
+.pilot-sidebar .pilot-settings-navitem {
+  display: flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  color: var(--pilot-ink2);
+  text-align: left;
+}
+.pilot-sidebar .pilot-settings-navitem:hover {
+  color: var(--pilot-ink);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-sidebar .pilot-settings-navitem[aria-current='page'] {
+  color: var(--pilot-accent-strong);
+  font-weight: 600;
+  background: var(--pilot-accent-soft);
+}
+.pilot-settings-content {
+  min-width: 0;
+  min-height: 0;
+  padding: 16px 18px 20px;
+  overflow-y: auto;
+}
+.pilot-settings-content .pilot-settings {
+  max-width: none;
+}
+.pilot-settings-empty {
+  color: var(--pilot-ink3);
+  font-size: 12.5px;
+}
+
+/* 宿主侧栏列自己带边框，Pilot 用导航区下沿的发丝线代替，避免出现双线 */
+[class*='sidebarCol'],
+[class*='sidebarColumn'] {
+  border-right: 0 !important;
+  border-left: 0 !important;
+}
+div:has(> .pilot-sidebar),
+div:has(> .pilot-sidebar) > * {
+  border-right: 0 !important;
+}
+
+/* ── 强调色选择器与品牌字标 ─────────────────────────────────────────── */
+.pilot-accent-swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.pilot-accent-swatch {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 50%;
+}
+.pilot-accent-swatch-dot {
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 12%);
+}
+.pilot-accent-swatch:hover {
+  border-color: var(--pilot-ink3);
+}
+.pilot-accent-swatch.is-on {
+  border-color: var(--pilot-accent);
+  box-shadow: 0 0 0 2px var(--pilot-accent-soft);
+}
+.pilot-brand-name {
+  white-space: nowrap;
+}
+.pilot-brand-dot {
+  color: var(--pilot-accent);
+}
+/* 品牌章：和标题栏同高（50px），可点击展开/收起菜单栏 */
+.pilot-brand {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 40px;
+  height: 50px;
+  margin: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-app-region: no-drag;
+}
+.pilot-brand:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-brand + .pilot-rail-sep { margin-top: 0; }
+
+/* 窗口拖拽区：菜单头可拖，按钮保持可点（品牌章现在是按钮，不参与拖拽） */
+.pilot-menu-header { -webkit-app-region: drag; }
+.pilot-menu-header button { -webkit-app-region: no-drag; }
+
+/* 右侧栏收起时内容列会顶到窗口最右：让会话标题行的操作按钮避开右上角窗口按钮 */
+[data-rightbar-collapsed] header:has([data-conversation-header-leading]) [class*='titleRow'] { padding-right: 140px; }
+
+/* 会话头部：标题行抬到与右上角窗口按钮（Electron overlay 高 36px）同一水平中线；去掉下方分割线 */
+header:has([data-conversation-header-leading]) { padding-top: 0; min-height: 0; border-bottom: none; }
+header:has([data-conversation-header-leading]) [class*='titleRow'] { min-height: 50px; -webkit-app-region: drag; }
+
+/* 标题行可按住拖拽移动窗口；行内按钮/标签保持可点，标题文字与空白区可拖 */
+header:has([data-conversation-header-leading]) [class*='titleRow'] button,
+header:has([data-conversation-header-leading]) [class*='headerActions'],
+header:has([data-conversation-header-leading]) [class*='headerUtilities'],
+header:has([data-conversation-header-leading]) [class*='headerCorner'] { -webkit-app-region: no-drag; }
+
+/* 去掉「对话 / 轨迹」视图标签行 */
+header:has([data-conversation-header-leading]) [class*='tabs'] { display: none; }
+
+/* 右侧栏顶部的「收起 / 全屏 / 展开」按钮与右上角原生窗口按钮重叠，整组左移让出窗口按钮的位置 */
+[data-sidebar-right-toggle],
+[data-sidebar-right-mode],
+[data-sidebar-right-expand] { translate: -140px 0; }
+
+/* 「快速查看会话记录」的竖向标记条（turn rail）：从右侧移到左侧。
+   宿主的 .eGxaPq_mark:before 与这里同权重，靠 !important 保证「左对齐 + 从左侧向右展开」。 */
+[class*='eGxaPq_frame'] { right: auto !important; left: 12px !important; }
+[class*='eGxaPq_mark']:before { right: auto !important; left: 0 !important; transform-origin: 0 !important; }
+
+/* 轮次预览 tooltip：标记条在左侧，预览改到标记条右侧，避免被左侧菜单栏挡住 */
+[role='tooltip'][class*='eGxaPq_preview'] { right: auto !important; left: calc(100% + 10px) !important; }
+
+/* 预览卡片入场方向也跟着翻：原来是从右往左滑，改为从左往右滑 */
+[role='tooltip'][class*='eGxaPq_preview'] { animation: pilot-turn-preview-enter .12s ease-out; }
+@keyframes pilot-turn-preview-enter {
+  0% { opacity: 0; transform: translate(-4px); }
+  to { opacity: 1; transform: translate(0); }
+}
+
+/* 拖拽越过 min-width 收起时，宿主会因 data-dragging 关掉过渡；这里临时强制列宽过渡，
+   让「往左收起」是动画而不是瞬移（由 sidebar.tsx 在收起瞬间给 <html> 打标记）。 */
+html[data-pilot-collapsing] [class*='frame'] {
+  transition: grid-template-columns 420ms cubic-bezier(0.2, 0, 0, 1) !important;
+}
+
+/* ── agent 菜单列：会话 / 项目 两段 ───────────────────────────────── */
+.pilot-agent-menu {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+  padding: 2px 4px 12px;
+  overflow-y: auto;
+}
+.pilot-agent-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pilot-agent-heading {
+  padding: 6px 6px 4px;
+  color: var(--pilot-ink3);
+  font-family: var(--pilot-font);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.pilot-agent-project {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 2px 0 6px;
+}
+.pilot-agent-project-title {
+  display: block;
+  width: 100%;
+  padding: 4px 6px;
+  overflow: hidden;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--pilot-ink2);
+  font-family: var(--pilot-font);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.pilot-agent-project-title:hover {
+  color: var(--pilot-ink);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-agent-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--pilot-ink2);
+  font-family: var(--pilot-font);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.pilot-agent-row:hover {
+  color: var(--pilot-ink);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-agent-row-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pilot-agent-more,
+.pilot-agent-add {
+  align-self: flex-start;
+  margin: 2px 0 0 6px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--pilot-accent-strong);
+  font-family: var(--pilot-font);
+  font-size: 12px;
+  cursor: pointer;
+}
+.pilot-agent-more:hover,
+.pilot-agent-add:hover {
+  background: var(--pilot-accent-soft);
+}
+.pilot-agent-empty {
+  padding: 6px 6px 8px;
+  color: var(--pilot-ink3);
+  font-family: var(--pilot-font);
+  font-size: 12px;
+}
+
+/* 标题行 / 行内悬停操作（＋ / ⋯ / 文件夹图标默认隐藏） */
+.pilot-agent-heading-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 26px;
+  padding-right: 4px;
+}
+.pilot-agent-heading-actions,
+.pilot-agent-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.pilot-agent-heading-row:hover .pilot-agent-heading-actions,
+.pilot-agent-heading-row:focus-within .pilot-agent-heading-actions,
+.pilot-agent-project-row:hover .pilot-agent-row-actions,
+.pilot-agent-project-row:focus-within .pilot-agent-row-actions,
+.pilot-agent-row-wrap:hover .pilot-agent-row-actions,
+.pilot-agent-row-wrap:focus-within .pilot-agent-row-actions {
+  opacity: 1;
+}
+.pilot-agent-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--pilot-ink3);
+  cursor: pointer;
+}
+.pilot-agent-icon:hover {
+  color: var(--pilot-ink);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+/* 会话行外壳：悬停出现 ⋯ */
+.pilot-agent-row-wrap {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: 8px;
+}
+.pilot-agent-row-wrap:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-agent-row-wrap .pilot-agent-row {
+  flex: 1;
+  min-width: 0;
+}
+.pilot-agent-row-wrap .pilot-agent-row:hover {
+  background: none;
+}
+.pilot-agent-pin {
+  flex: none;
+  width: 4px;
+  height: 4px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--pilot-accent);
+}
+.pilot-agent-row-wrap[data-archived] .pilot-agent-row {
+  color: var(--pilot-ink3);
+  text-decoration: line-through;
+}
+/* 当前打开的会话：选中态高亮 */
+.pilot-agent-row[aria-current='page'] {
+  color: var(--pilot-accent-strong);
+  background: var(--pilot-accent-soft);
+  font-weight: 600;
+}
+/* 选中行右侧的 ⋯ 也跟随强调色（否则看起来还是灰的、和选中态不搭） */
+.pilot-agent-row-wrap:has(.pilot-agent-row[aria-current='page']) .pilot-agent-icon {
+  color: var(--pilot-accent-strong);
+}
+.pilot-agent-row-wrap:has(.pilot-agent-row[aria-current='page']) .pilot-agent-icon:hover {
+  background: var(--pilot-accent-soft);
+}
+/* 运行中的会话：脉冲小圆点 */
+.pilot-agent-running {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--pilot-accent);
+  animation: pilot-agent-pulse 1.2s ease-in-out infinite;
+}
+@keyframes pilot-agent-pulse {
+  0%, 100% { opacity: .3; transform: scale(.75); }
+  50% { opacity: 1; transform: scale(1); }
+}
+/* 刚跑完的会话：绿色对勾 */
+.pilot-agent-done {
+  flex: none;
+  margin-right: 6px;
+  color: #16a34a;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* 工作台：今日 Token 卡片 */
+.pilot-token-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 20px;
+  border: 1px solid var(--pilot-line-soft);
+  border-radius: var(--pilot-r-panel);
+  background: var(--pilot-sheet);
+  box-shadow: var(--pilot-shadow);
+}
+.pilot-token-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.pilot-token-label {
+  color: var(--pilot-ink3);
+  font-family: var(--pilot-font);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.pilot-token-value {
+  color: var(--pilot-ink);
+  font-family: var(--pilot-font);
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1.2;
+}
+.pilot-token-value[data-empty] {
+  color: var(--pilot-ink3);
+  font-size: 15px;
+  font-weight: 500;
+}
+.pilot-token-hint {
+  color: var(--pilot-ink3);
+  font-family: var(--pilot-font);
+  font-size: 12px;
+}
+/* 项目行：可展开收起 + 悬停 ＋ / ⋯ */
+.pilot-agent-project-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  border-radius: 8px;
+}
+.pilot-agent-project-row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-agent-project-title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  min-width: 0;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--pilot-ink2);
+  font-family: var(--pilot-font);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+.pilot-agent-project-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pilot-agent-chevron {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  color: var(--pilot-ink3);
+  transition: transform .12s ease;
+}
+.pilot-agent-chevron[data-open] {
+  transform: rotate(90deg);
+}
+/* 菜单弹层 */
+.pilot-agent-section,
+.pilot-agent-project,
+.pilot-agent-heading-row,
+.pilot-agent-row-wrap,
+.pilot-agent-project-row {
+  position: relative;
+}
+.pilot-agent-pop {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 2px);
+  right: 6px;
+  min-width: 150px;
+  padding: 6px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 10px;
+  background: var(--pilot-sheet);
+  box-shadow: var(--pilot-shadow-lift);
+}
+.pilot-agent-pop-label {
+  padding: 4px 8px;
+  color: var(--pilot-ink3);
+  font-family: var(--pilot-font);
+  font-size: 11px;
+  font-weight: 600;
+}
+.pilot-agent-pop-item {
+  display: block;
+  width: 100%;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: 7px;
+  background: none;
+  color: var(--pilot-ink2);
+  font-family: var(--pilot-font);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+.pilot-agent-pop-item:hover {
+  color: var(--pilot-ink);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-agent-pop-item[aria-checked='true'] {
+  color: var(--pilot-accent-strong);
+  font-weight: 600;
+}
+
+/* 重命名弹窗（输入框 + 取消/确定） */
+.pilot-agent-dialog {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 2px);
+  right: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 220px;
+  padding: 10px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 10px;
+  background: var(--pilot-sheet);
+  box-shadow: var(--pilot-shadow-lift);
+}
+.pilot-agent-dialog-input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 7px;
+  outline: none;
+  background: var(--pilot-paper);
+  color: var(--pilot-ink);
+  font-family: var(--pilot-font);
+  font-size: 13px;
+}
+.pilot-agent-dialog-input:focus {
+  border-color: var(--pilot-accent);
+}
+.pilot-agent-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+.pilot-agent-dialog-cancel,
+.pilot-agent-dialog-ok {
+  padding: 4px 10px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 7px;
+  background: none;
+  color: var(--pilot-ink2);
+  font-family: var(--pilot-font);
+  font-size: 12px;
+  cursor: pointer;
+}
+.pilot-agent-dialog-cancel:hover {
+  color: var(--pilot-ink);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.pilot-agent-dialog-ok {
+  border-color: transparent;
+  background: var(--pilot-accent);
+  color: #fff;
+}
+.pilot-agent-dialog-ok:hover {
+  background: var(--pilot-accent-strong);
+}
+
+/* 新会话（hero）页隐藏「工作区选择」那一行（会话已默认绑定工作区，不需要再选） */
+[class*='heroWorkspaceRow'] { display: none; }
+
+/* agent 列表层级缩进：标题 = 1 级；会话行 / 项目名 = 2 级；项目下的会话 = 3 级 */
+.pilot-agent-section > .pilot-agent-row-wrap,
+.pilot-agent-section > .pilot-agent-more,
+.pilot-agent-section > .pilot-agent-empty,
+.pilot-agent-section > .pilot-agent-project { margin-left: 14px; }
+.pilot-agent-project .pilot-agent-row-wrap,
+.pilot-agent-project .pilot-agent-more,
+.pilot-agent-project .pilot-agent-empty { margin-left: 14px; }
