@@ -4,9 +4,13 @@ import { readHostState, saveHostSettings } from '../core/host-api';
 import { resetPrefs, setPrefs, toggleSettings, useWorkbench } from './store';
 import { ACCENTS, DEFAULT_PAGES, isAccentId, normalizeDefaultPage, type PilotPrefs } from './prefs';
 import { hostSections, subscribeSections, type SettingsSectionRow } from './slots';
+import { KnowledgePanels } from './knowledge-panels';
 import { Panel, Segmented, SettingsRow, Toggle } from './ui';
 
 const PILOT_SECTION = { id: 'pilot', label: '本机偏好' } as const;
+const KNOWLEDGE_SECTION = { id: 'pilot-knowledge', label: '知识库' } as const;
+/** 插件把本地模型注册成独立 settings.section，这里并进知识库分组 */
+const LOCAL_MODELS_SECTION_ID = 'local-models';
 
 /** 宿主 settings.section 的实时清单；slot 变化（插件装载/卸载）时刷新 */
 function useHostSections(): SettingsSectionRow[] {
@@ -90,10 +94,16 @@ export function PrefsPanels() {
  * 右列 = 选中分组的正文（宿主分组直接用 renderSlot 渲染，不再跳到宿主设置页）。
  */
 export function SettingsDialog({ renderSlot }: { renderSlot: (name: string, props: object, options?: object) => React.ReactNode }) {
-  const { settingsOpen } = useWorkbench();
-  const sections = useHostSections();
-  const [active, setActive] = React.useState<string>(PILOT_SECTION.id);
+  const { settingsOpen, settingsSection } = useWorkbench();
+  // 插件注册的「本地模型」分组并进「知识库」里一起展示，左栏不再单列
+  const sections = useHostSections().filter(section => section.id !== LOCAL_MODELS_SECTION_ID);
+  const [active, setActive] = React.useState<string>(() => settingsSection ?? PILOT_SECTION.id);
   const close = React.useCallback(() => toggleSettings(false), []);
+
+  // 侧栏图标可以先写定位再开弹窗：打开期间跟随 store 里的目标分组
+  React.useEffect(() => {
+    if (settingsOpen && settingsSection) setActive(settingsSection);
+  }, [settingsOpen, settingsSection]);
 
   React.useEffect(() => {
     if (!settingsOpen) return;
@@ -127,6 +137,12 @@ export function SettingsDialog({ renderSlot }: { renderSlot: (name: string, prop
           <button
             type="button"
             className="pilot-settings-navitem"
+            aria-current={active === KNOWLEDGE_SECTION.id ? 'page' : undefined}
+            onClick={() => setActive(KNOWLEDGE_SECTION.id)}
+          >{KNOWLEDGE_SECTION.label}</button>
+          <button
+            type="button"
+            className="pilot-settings-navitem"
             aria-current={active === PILOT_SECTION.id ? 'page' : undefined}
             onClick={() => setActive(PILOT_SECTION.id)}
           >{PILOT_SECTION.label}</button>
@@ -134,9 +150,11 @@ export function SettingsDialog({ renderSlot }: { renderSlot: (name: string, prop
         <div className="pilot-settings-content">
           {hostActive
             ? renderSlot('settings.section', { close }, { only: active })
-            : active === PILOT_SECTION.id
-              ? <PrefsPanels />
-              : <p className="pilot-settings-empty">该分组已不可用。</p>}
+            : active === KNOWLEDGE_SECTION.id
+              ? <KnowledgePanels renderSlot={renderSlot} />
+              : active === PILOT_SECTION.id
+                ? <PrefsPanels />
+                : <p className="pilot-settings-empty">该分组已不可用。</p>}
         </div>
       </div>
     </div>

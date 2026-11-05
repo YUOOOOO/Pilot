@@ -50,3 +50,45 @@ export function Segmented({ items, value, onChange, label }: { items: SegmentIte
     >{item.label}</button>)}
   </div>;
 }
+
+/** 单行文本输入（设置里的路径、模型名、密钥等） */
+export function TextField({ value, onChange, label, placeholder, type = 'text', disabled }: {
+  value: string; onChange(next: string): void; label: string; placeholder?: string; type?: 'text' | 'password' | 'url'; disabled?: boolean;
+}) {
+  return <input
+    className="pilot-input"
+    type={type}
+    aria-label={label}
+    placeholder={placeholder}
+    value={value}
+    disabled={disabled}
+    spellCheck={false}
+    onChange={event => onChange(event.target.value)}
+  />;
+}
+
+/** 数字输入：空值不回写，越界按 min/max 收口，整数项四舍五入（宿主 zod 要求 int 的字段拿到小数会拒收） */
+export function NumberField({ value, onChange, label, min, max, step = 1, width = 96, integer = true }: {
+  value: number; onChange(next: number): void; label: string; min?: number; max?: number; step?: number; width?: number; integer?: boolean;
+}) {
+  return <input
+    className="pilot-input is-number"
+    style={{ width }}
+    type="number"
+    inputMode="numeric"
+    aria-label={label}
+    value={Number.isFinite(value) ? value : ''}
+    min={min}
+    max={max}
+    step={step}
+    onChange={event => {
+      const text = event.target.value;
+      if (text === '') return;
+      const parsed = Number(text);
+      if (!Number.isFinite(parsed)) return;
+      const rounded = integer ? Math.round(parsed) : parsed;
+      const clamped = Math.min(max ?? Number.POSITIVE_INFINITY, Math.max(min ?? Number.NEGATIVE_INFINITY, rounded));
+      onChange(clamped);
+    }}
+  />;
+}

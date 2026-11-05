@@ -6,7 +6,10 @@ import { go, setAgent, toggleSettings, useWorkbench } from './workbench/store';
 import { bindSlotBridge } from './workbench/slots';
 import { SettingsDialog } from './workbench/settings-dialog';
 import { PilotMark } from './brand';
-import { AgentMenu, defaultWorkspaceId } from './agent-menu';
+import { AgentMenu, defaultWorkspaceId, type SessionStatusMap } from './agent-menu';
+import { GROUPCHAT_ENABLED } from './features';
+// 知识库图标用插件自己画的那枚（IconBook），和它面板里的视觉保持一套
+import { IconBook } from '../../dsh-knowledge/src/ui/client/icons';
 
 type Dispose = () => void;
 type Panel = { id: string; label: string; order: number };
@@ -20,20 +23,24 @@ export interface SidebarContext {
   effect(setup: () => Dispose, label?: string): unknown;
   locale: { subscribe(listener: () => void): Dispose };
   uiWorkspace: { startSession(): void };
-  layout: { selectPanel(id: string): void; toggleSidebar(): void };
+  layout: { selectPanel(id: string | null): void; toggleSidebar(): void };
 }
 interface SidebarProps {
   collapsed: boolean;
   width?: number;
   renderSlot: (name: string, props: object, options?: object) => React.ReactNode;
   usePanels: <T>(selector: (panels: readonly Panel[]) => T) => T;
-  usePanelInfo: <T>(selector: (state: { activePanelId: string }) => T) => T;
+  /** activePanelId 为 null 表示「会话占主列」（DSH 的约定） */
+  usePanelInfo: <T>(selector: (state: { activePanelId: string | null }) => T) => T;
+  /** 宿主的会话状态 hook：会话 → { running, pendingInteraction, completionUnread } */
+  useSessionStatus: <T>(selector: (state: SessionStatusMap) => T) => T;
   startSession(workspaceId?: string): void;
-  selectPanel(id: string): void;
+  selectPanel(id: string | null): void;
   toggleSidebar(): void;
 }
 
-export type IconKind = 'plus' | 'panel' | 'files' | 'robot' | 'code' | 'clock' | 'plug' | 'bell' | 'settings' | 'home' | 'wrench' | 'collapse' | 'expand';
+export type IconKind = 'plus' | 'panel' | 'files' | 'robot' | 'code' | 'clock' | 'plug' | 'bell' | 'settings' | 'home' | 'wrench' | 'collapse' | 'expand' | 'library';
+const EMPTY_SESSION_STATUS: SessionStatusMap = new Map();
 
 export function Icon({ kind, size = 16 }: { kind: IconKind; size?: number }) {
   const paths: Record<IconKind, React.ReactNode> = {
@@ -50,19 +57,27 @@ export function Icon({ kind, size = 16 }: { kind: IconKind; size?: number }) {
     wrench: <><path d="M15.5 3.5a5 5 0 0 0-6.4 6.4L3.5 15.5 8.5 20.5l5.6-5.6a5 5 0 0 0 6.4-6.4l-3 3-2.5-.5-.5-2.5 3-3Z" /></>,
     collapse: <><path d="M5 4v16" /><path d="m14 8-4 4 4 4" /></>,
     expand: <><path d="M5 4v16" /><path d="m10 8 4 4-4 4" /></>,
+    library: <><path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H19v18H5.5A1.5 1.5 0 0 1 4 19.5z" /><path d="M8 3v18" /><path d="M12 8h4M12 12h4" /></>,
   };
   return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.65" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{paths[kind]}</svg>;
 }
 
 // 三栏结构：48px 图标轨（会话与项目 / 工作台 / 各面板 / 任务动态 / 底部设置）
 // + 菜单列（当前图标对应的列表）+ 右侧内容区。类名保持全局，preload 与冒烟按名字量尺寸。
-function PilotSidebar({ collapsed, width, renderSlot, usePanels, usePanelInfo, startSession, selectPanel, toggleSidebar }: SidebarProps) {
+function PilotSidebar({ collapsed, width, renderSlot, usePanels, usePanelInfo, useSessionStatus, startSession, selectPanel, toggleSidebar }: SidebarProps) {
+  // 宿主的会话状态（运行中 / 等待审批 / 有未读完成）——agent 列表用它决定小点的颜色。
+  // 老版本宿主没有这个 hook 时退回空表，列表照常可用。
+  const sessionStatus: SessionStatusMap = typeof useSessionStatus === 'function'
+    ? useSessionStatus(state => state)
+    : EMPTY_SESSION_STATUS;
   const groups = navGroups();
   const flat = groups.flatMap(group => group.entries);
+  // 知识库有自己的图标入口，不再出现在工作台的页面列表里
+  const menuEntries = flat.filter(entry => entry.id !== 'knowledge');
   const ownTitles = new Set(flat.map(entry => entry.meta.title));
   // 宿主面板与本地页面同名时只保留本地页面，避免侧轨出现两条同名入口。
   const panels = [...usePanels(value => value)]
-    .filter(panel => panel.id !== 'pilot-home' && !ownTitles.has(panel.label))
+    .filter(panel => panel.id !== 'pilot-home' && panel.id !== 'groupchat' && !ownTitles.has(panel.label))
     .sort((a, b) => {
       const rank = (id: string) => id === 'schedules' ? 0 : id === 'plugins' ? 1 : 2;
       return rank(a.id) - rank(b.id);
@@ -83,8 +98,67 @@ function PilotSidebar({ collapsed, width, renderSlot, usePanels, usePanelInfo, s
     toggleSidebar();
   };
   const activate = (id: string) => { selectPanel(id); if (collapsed) animateToggle(); };
-  const openAgent = () => { setAgent(true); activate('conversation'); };
+  // 群聊入口在 agent 菜单列里：打开插件面板；create=true 时点它自己的「新建群聊」按钮，
+  // groupName 指定时点同名群行切过去（面板里的群列表列被 CSS 隐藏了，但节点还在 DOM 里，
+  // 程序化点击照常触发插件自己的 selectGroup）。管理 / 导出不走这里 —— 那是插件挂在
+  // 窗口级浮层上的独立弹窗，由 agent 菜单直接派发 dsh-groupchat:manage 事件。
+  const openGroupchat = (create: boolean, groupName?: string) => {
+    setAgent(true);
+    activate('groupchat');
+    if (!create && groupName === undefined) return;
+    let tries = 0;
+    const retry = () => {
+      tries += 1;
+      if (tries > 40) return;
+      window.setTimeout(click, 150);
+    };
+    const click = () => {
+      if (create) {
+        const createButton = document.querySelector('#mgc-rail .mgc-railFoot button');
+        if (createButton instanceof HTMLElement) { createButton.click(); return; }
+        retry();
+        return;
+      }
+      const rows = [...document.querySelectorAll('#mgc-rail .mgc-railRow')];
+      const row = rows.find(element => element.querySelector('.mgc-railName')?.textContent?.trim() === groupName);
+      if (row === undefined) { retry(); return; }
+      if (row.getAttribute('data-active') !== 'true') {
+        // 切群是异步的（要重新读事件流），点完下一轮再确认一次就结束
+        if (row instanceof HTMLElement) row.click();
+        retry();
+      }
+    };
+    window.setTimeout(click, 150);
+  };
+  // 回会话必须用 selectPanel(null)：DSH 只把 activePanelId === null 当作「会话占主列」。
+  // 传 'conversation' 会被当成一个全局面板，右侧栏的 session 视图 active=false，
+  // store→layout 的同步整段失效（刷新后右栏不可见、展开按钮不渲染）。
+  const openConversationSeat = () => {
+    if (active !== null) selectPanel(null);
+    if (collapsed) animateToggle();
+  };
+  const openAgent = () => { setAgent(true); openConversationSeat(); };
   const openPage = (id: string) => { setAgent(false); go(id); activate('pilot-home'); };
+  // 知识库是「整块主区域」的页面：进去时收起菜单列（只剩图标轨），离开时恢复。
+  // 只在页面切换的那一次动手——用户进来后手动展开侧栏，不会被我们立刻再收起。
+  const kbPage = !agent && store.page === 'knowledge';
+  const autoCollapsed = React.useRef(false);
+  const wasKbPage = React.useRef(kbPage);
+  React.useEffect(() => {
+    if (kbPage === wasKbPage.current) return;
+    wasKbPage.current = kbPage;
+    if (kbPage) {
+      if (!collapsed) {
+        autoCollapsed.current = true;
+        toggleSidebar();
+      }
+      return;
+    }
+    if (autoCollapsed.current) {
+      autoCollapsed.current = false;
+      if (collapsed) toggleSidebar();
+    }
+  }, [kbPage, collapsed, toggleSidebar]);
   // 启动落点由「默认页面」偏好决定：agent 直接进会话与项目，其余落到工作台。
   // 宿主可能在启动后恢复上次面板，所以等一小会儿再抢占一次座位。
   const activeRef = React.useRef(active);
@@ -100,8 +174,15 @@ function PilotSidebar({ collapsed, width, renderSlot, usePanels, usePanelInfo, s
       document.removeEventListener('pointerdown', cancelOnInteraction, true);
       if (claimed.current) return;
       claimed.current = true;
-      if (defaultPref.current === 'agent') { setAgent(true); selectPanel('conversation'); return; }
-      if (!activeRef.current || activeRef.current === 'conversation') { setAgent(false); selectPanel('pilot-home'); }
+      // 会话居主列 = activePanelId 为 null；已经是 null 时不要再调，避免打断进行中的导航
+      if (defaultPref.current === 'agent') {
+        setAgent(true);
+        if (activeRef.current !== null) selectPanel(null);
+        return;
+      }
+      // 宿主已恢复出会话（主列有会话）时不要抢去工作台，保持刷新前的位置
+      const hostRestored = document.querySelector('[data-conversation-session]') !== null;
+      if (!activeRef.current && !hostRestored) { setAgent(false); selectPanel('pilot-home'); }
     }, 300);
     return () => {
       clearTimeout(timer);
@@ -149,15 +230,25 @@ function PilotSidebar({ collapsed, width, renderSlot, usePanels, usePanelInfo, s
   const panelIcon = (panel: Panel) => panel.id === 'schedules' ? <Icon kind="clock" size={20} />
     : panel.id === 'plugins' ? <Icon kind="plug" size={20} />
       : <>{renderSlot('sidebar.panellist', { size: 20, active: active === panel.id }, { only: panel.id })}</>;
-  return <aside className="pilot-sidebar" data-collapsed={collapsed} data-kbd={store.prefs.showKeys ? 'on' : 'off'} data-accent={store.prefs.accent} aria-label="Pilot 工作台侧边栏">
+  return <aside className="pilot-sidebar" data-collapsed={collapsed} data-kb-page={kbPage ? 'true' : undefined} data-kbd={store.prefs.showKeys ? 'on' : 'off'} data-accent={store.prefs.accent} aria-label="Pilot 工作台侧边栏">
     <nav className="pilot-activitybar" aria-label="活动栏">
-      <button type="button" className="pilot-brand" aria-label={collapsed ? '展开菜单栏' : '收起菜单栏'} title={collapsed ? '展开菜单栏' : '收起菜单栏'} onClick={animateToggle}><PilotMark size={26} /></button>
+      <button type="button" className="pilot-brand" aria-label={kbPage ? '知识库' : collapsed ? '展开菜单栏' : '收起菜单栏'} title={kbPage ? '知识库' : collapsed ? '展开菜单栏' : '收起菜单栏'} onClick={() => { if (kbPage) return; animateToggle(); }}><PilotMark size={26} /></button>
       <span className="pilot-rail-sep" aria-hidden="true" />
-      <button type="button" className="pilot-activity" aria-label="工作台" title="工作台" aria-current={!agent ? 'page' : undefined} onClick={() => openPage(ownPage?.id ?? 'workbench')}>
+      <button type="button" className="pilot-activity" aria-label="工作台" title="工作台" aria-current={!agent && store.page === 'workbench' ? 'page' : undefined} onClick={() => openPage('workbench')}>
         <Icon kind="home" size={20} />
       </button>
       <button type="button" className="pilot-activity" aria-label="agent" title="agent" aria-current={agent ? 'page' : undefined} onClick={openAgent}>
         <Icon kind="robot" size={20} />
+      </button>
+      <button
+        type="button"
+        className="pilot-activity"
+        aria-label="知识库"
+        title="知识库"
+        aria-current={!agent && store.page === 'knowledge' ? 'page' : undefined}
+        onClick={() => openPage('knowledge')}
+      >
+        <IconBook size={20} />
       </button>
       <span className="pilot-rail-sep" aria-hidden="true" />
       {panels.map(panel => <button key={panel.id} type="button" className="pilot-activity" aria-label={panel.label} title={panel.label} aria-current={active === panel.id ? 'page' : undefined} onClick={() => activate(panel.id)}>
@@ -167,22 +258,21 @@ function PilotSidebar({ collapsed, width, renderSlot, usePanels, usePanelInfo, s
         <Icon kind="bell" size={20} />
       </button>
       <div className="pilot-activity-bottom">
-        <button type="button" className="pilot-activity pilot-collapse-trigger" aria-label={collapsed ? '展开侧边栏' : '折叠侧边栏'} title={collapsed ? '展开侧边栏' : '折叠侧边栏'} onClick={animateToggle}>
+        <button type="button" className="pilot-activity pilot-collapse-trigger" aria-label={collapsed ? '展开侧边栏' : '折叠侧边栏'} title={collapsed ? '展开侧边栏' : '折叠侧边栏'} onClick={() => { if (kbPage) return; animateToggle(); }}>
           <Icon kind={collapsed ? 'expand' : 'collapse'} size={20} />
         </button>
         <div className="pilot-footer-settings">
           <button type="button" className="pilot-activity pilot-settings-trigger" aria-label="设置" title="设置" onClick={() => toggleSettings(true)}><Icon kind="settings" size={20} /></button>
         </div>
-        {renderSlot('sidebar.footer.action', { wide: false })}
       </div>
     </nav>
     <section className="pilot-menu" aria-label="功能菜单栏">
       <header className="pilot-menu-header">
         <span className="pilot-menu-title">{title}</span>
       </header>
-      <div className="pilot-workspaces" hidden={!agent}><AgentMenu onNewSession={workspaceId => startSession(workspaceId)} /></div>
+      <div className="pilot-workspaces" hidden={!agent}><AgentMenu onNewSession={workspaceId => startSession(workspaceId)} onOpenGroupchat={GROUPCHAT_ENABLED ? openGroupchat : undefined} groupchatActive={GROUPCHAT_ENABLED && agent && active === 'groupchat'} sessionStatus={sessionStatus} /></div>
       <div className="pilot-page-list" hidden={agent}>
-        {flat.map((entry, index) => <button
+        {menuEntries.map((entry, index) => <button
           key={entry.id}
           type="button"
           className="pilot-menu-item"

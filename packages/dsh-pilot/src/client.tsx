@@ -7,10 +7,15 @@ import { useDesktopInfo } from './core/desktop';
 import { WorkbenchApp } from './workbench/shell';
 import { flattenWorkspaceGrouping } from './workbench/workspace-view';
 import { bindWorkspaceApi } from './agent-menu';
+import { readHostState } from './core/host-api';
+import { setPrefs } from './workbench/store';
+import { bindCostMeter } from './workbench/cost-meter';
+import { isAccentId, normalizeDefaultPage, type PilotPrefs } from './workbench/prefs';
 // 越早写越好：宿主的会话浏览器在模块初始化时读取这份视图状态
 flattenWorkspaceGrouping();
 // 页面模块自注册进注册表；顺序即 ⌘1..N 与侧轨顺序
 import './pages/workbench';
+import './pages/knowledge';
 import './styles/shell.css';
 
 type Dispose = () => void;
@@ -39,8 +44,64 @@ function PilotVersion() {
 
 export const inject = ['slots', 'layout', 'uiWorkspace', 'locale', 'sessions', 'workspaces', 'remote'];
 
+/**
+ * 实测原生窗口按钮（最小化/最大化/关闭）在右上角占用的宽度，写成 CSS 变量。
+ * 用 Window Controls Overlay 的 env() 量，拿不到时按 138 CSS px 兜底。
+ * 页面缩放会改变这些按钮的 CSS 宽度，所以不能只在启动时算一次。
+ */
+function syncWindowControls(): void {
+  try {
+    const root = document.documentElement;
+    const probe = document.createElement('div');
+    probe.style.cssText = 'position:fixed;top:0;left:0;width:0;height:0;visibility:hidden;pointer-events:none;padding:0;margin:0;';
+    probe.style.paddingLeft = 'env(titlebar-area-x, 0px)';
+    probe.style.paddingTop = 'env(titlebar-area-width, 0px)';
+    root.appendChild(probe);
+    const computed = getComputedStyle(probe);
+    const x = Number.parseFloat(computed.paddingLeft) || 0;
+    const areaWidth = Number.parseFloat(computed.paddingTop) || 0;
+    probe.remove();
+    const controls = areaWidth > 0 ? Math.round(window.innerWidth - x - areaWidth) : Math.round(138 / (window.devicePixelRatio || 1));
+    root.style.setProperty('--pilot-window-controls', `${controls}px`);
+    // 宿主面板（自动化任务 / 插件）的页头动作区需要让开的宽度：只有启用 Window Controls
+    // Overlay 的 Electron 窗口才留，普通浏览器里留 0，避免平白多出一块右内边距。
+    const overlay = (navigator as unknown as { windowControlsOverlay?: { visible?: boolean } }).windowControlsOverlay;
+    const hasOverlay = overlay !== undefined && overlay.visible !== false;
+    root.style.setProperty('--pilot-window-controls-inset', hasOverlay ? `${controls + 8}px` : '0px');
+  } catch { /* CSS 里有兜底 */ }
+}
+
 export function apply(ctx: ClientContext) {
   try { registerSidebar(ctx); } catch (error) { console.error('Pilot sidebar activation:', error instanceof Error ? error.stack : String(error)); throw error; }
+  // 原生窗口按钮（最小化/最大化/关闭）占右上角一条区域，宽度随缩放/系统缩放/机型变化。
+  syncWindowControls();
+  // 缩放（Ctrl+= / Ctrl+- / Ctrl+滚轮）和窗口尺寸变化都会改变那条安全区的 CSS 宽度，
+  // 重算后宿主面板的页头（见 shell.css 的 t-XoWW_pageHeading / X_2TxG_pageHead 规则）才不会压到按钮。
+  ctx.effect(() => {
+    let frame = 0;
+    const schedule = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => { frame = 0; syncWindowControls(); });
+    };
+    window.addEventListener('resize', schedule);
+    window.visualViewport?.addEventListener('resize', schedule);
+    return () => {
+      window.removeEventListener('resize', schedule);
+      window.visualViewport?.removeEventListener('resize', schedule);
+      if (frame) window.cancelAnimationFrame(frame);
+    };
+  }, 'pilot: window controls width');
+  // 启动时即采用宿主保存的偏好（强调色/默认页面/快捷键提示）覆盖本地默认值，
+  // 否则首屏会用默认强调色，直到打开设置弹窗才跳变成宿主保存的那个。
+  void readHostState().then(state => {
+    const settings = state?.settings;
+    if (!settings) return;
+    const patch: Partial<PilotPrefs> = {};
+    if (typeof settings.accent === 'string' && isAccentId(settings.accent)) patch.accent = settings.accent;
+    if (settings.defaultPage !== undefined) patch.defaultPage = normalizeDefaultPage(settings.defaultPage);
+    if (settings.showKeys !== undefined) patch.showKeys = settings.showKeys !== false;
+    if (Object.keys(patch).length > 0) setPrefs(patch);
+  }).catch(() => { /* 宿主未就绪时保持本地偏好 */ });
   // 旧版窗口 preload 会在内容顶部画一个收起按钮；新版已把它移到侧栏。这里清掉运行时残留，
   // 让页面刷新后旧按钮立即消失（彻底移除仍需重启以加载新 preload）。
   try {
@@ -85,6 +146,7 @@ export function apply(ctx: ClientContext) {
       workspaces?: {
         list: { getSnapshot(): unknown; subscribe(listener: () => void): () => void };
         create(input: { path: string }): Promise<unknown>;
+        delete?(workspaceId: string): Promise<unknown>;
         pinSession?(sessionId: string): Promise<unknown>;
         unpinSession?(sessionId: string): Promise<unknown>;
         archiveSession?(sessionId: string): Promise<unknown>;
@@ -103,6 +165,10 @@ export function apply(ctx: ClientContext) {
         openSession: (sessionId: string) => ui.openSession(sessionId),
         pickDirectory: () => ui.pickDirectory(),
         createWorkspace: (path: string) => ws.create({ path }),
+        deleteWorkspace: (workspaceId: string) => {
+          if (!ws.delete) throw new Error('宿主未提供 workspace 删除能力');
+          return ws.delete(workspaceId);
+        },
         pinSession: (sessionId: string, pinned: boolean) => { void (pinned ? ws.pinSession?.(sessionId) : ws.unpinSession?.(sessionId)); },
         archiveSession: (sessionId: string, archived: boolean) => { void (archived ? ws.archiveSession?.(sessionId) : ws.unarchiveSession?.(sessionId)); },
         forkSession: (sessionId: string) => { void ui.forkSession?.(sessionId); },
@@ -113,6 +179,13 @@ export function apply(ctx: ClientContext) {
       });
     }
   } catch { /* 宿主服务缺失时列表保持空态 */ }
+  // 工作台的费用概览直接读 dsh-cost-meter 的 remote.costMeter；插件未安装时这里只留空绑定，
+  // 页面自己显示安装提示，不影响其它页面。
+  try {
+    bindCostMeter(ctx as unknown as { get?(name: string): unknown; remote?: Record<string, unknown> });
+  } catch (error) {
+    console.warn('Pilot cost-meter binding:', error instanceof Error ? error.message : String(error));
+  }
   // Pilot opens directly into its workbench; credentials remain user-configurable.
   for (const id of ['welcome-notice', 'deepseek-official']) {
     ctx.slots.inject('settings.onboarding', () => ctx.slots.register({
@@ -131,7 +204,7 @@ export function apply(ctx: ClientContext) {
   // The workbench is a real panel seat: the host renders the `main` entry whose key
   // matches the active panel, so the pages only appear once this seat exists.
   ctx.slots.inject('main', () => ctx.slots.register({
-    name: 'main', key: 'pilot-home', inject: () => ({ openConversation: () => ctx.layout.selectPanel('conversation') }),
+    name: 'main', key: 'pilot-home', inject: () => ({ openConversation: () => ctx.layout.selectPanel(null) }),
   }, WorkbenchApp));
   ctx.slots.inject('sidebar.panellist', () => ctx.slots.register({
     name: 'sidebar.panellist', id: 'pilot-home', order: -100, label: '工作台',

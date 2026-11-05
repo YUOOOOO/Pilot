@@ -1,15 +1,34 @@
 import { app, BrowserWindow, Menu, Tray, nativeImage, ipcMain, shell, dialog } from 'electron';
 import { appendFileSync, mkdirSync, existsSync, statSync, renameSync, writeFileSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { DshHost, redact } from './host.mjs';
+import { DshHost, redact, probeHost, isAlive, killTree } from './host.mjs';
+import { ensurePresets } from './provision.mjs';
+import { startGateway } from './gateway.mjs';
+import { PilotAuth } from '../../../packages/dsh-pilot/src/host/auth.mjs';
 
 app.setName('Pilot');
 const smoke = process.argv.includes('--smoke');
 if (process.env.PILOT_TEST_HOME && smoke) app.setPath('userData', process.env.PILOT_TEST_HOME);
 const locked = app.requestSingleInstanceLock();
 if (!locked) app.quit();
-let window, tray, host, origin, starting = false, quitting = false, finalExit = false;
+let window, tray, host, gateway, origin, starting = false, quitting = false, finalExit = false;
+// 远程模式：在 dsh web 前面加一层登录网关，只把网关地址交给窗口。
+const remote = {
+  enabled: process.env.PILOT_REMOTE === '1',
+  host: process.env.PILOT_REMOTE_HOST || '',
+  port: Number(process.env.PILOT_REMOTE_PORT || 8899),
+};
+// smoke 用一次性 home，退出时必须把 host 停掉；正常运行则让 host 留着给下次启动复用。
+let persistHost = !smoke && process.env.PILOT_NO_HOST_REUSE !== '1';
+// 远程模式不复用旧 host：网关地址和可信 Host 都跟本次启动绑定，复用容易连到错的一代。
+if (remote.enabled) persistHost = false;
+// 本次运行启动的 host 是否已经登记进缓存（登记过就可以留活给下次复用）
+let hostPersisted = false;
+// 「重启服务」要求冷启动：跳过复用逻辑。
+let forceCold = false;
+let hostLogFile;
 let logPath, splashPath;
 const log = message => {
   if (!logPath) return;
@@ -26,6 +45,33 @@ function allowed(event) {
   if (parsed.href !== pathToFileURL(splashPath).href && (!origin || parsed.origin !== origin)) throw new Error('Untrusted bridge origin');
 }
 function show() { window?.show(); window?.focus(); }
+// ── host 复用缓存 ─────────────────────────────────────────────────────
+// dsh web 冷启动要 25–30s（核心插件集加载），但服务开着就不用反复付这个成本：
+// 退出时把 {url,pid,fingerprint} 记下来，下次启动先探活，命中就直接连上去。
+// fingerprint 覆盖会影响 host 的东西（patch 内容、pilot host 半片、DSH 版本、profile 清单），
+// 这些一变就说明必须冷启动，避免连到旧代码还在跑的 host。
+function hostCachePath() { return path.join(app.getPath('userData'), 'host-cache.json'); }
+function readHostCache() {
+  try {
+    const value = JSON.parse(readFileSync(hostCachePath(), 'utf8'));
+    return value && typeof value.url === 'string' ? value : undefined;
+  } catch { return undefined; }
+}
+function writeHostCache(entry) {
+  try { writeFileSync(hostCachePath(), JSON.stringify(entry)); }
+  catch { /* 缓存只是加速手段，失败不影响启动 */ }
+}
+// 用内容而不是 mtime 做指纹：每次 npm run dev 都会重写 lib/index.js，但内容没变就不该
+// 判成「代码变了」而多等一次冷启动。
+function contentStamp(file) {
+  try { return createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 16); }
+  catch { return 'missing'; }
+}
+function hostFingerprint(parts) {
+  const hash = createHash('sha256');
+  for (const part of parts) hash.update(String(part ?? '')).update('\n');
+  return hash.digest('hex').slice(0, 16);
+}
 async function showSplash(error) {
   origin = undefined;
   await window.loadFile(splashPath, { query: error ? { error } : {} });
@@ -33,9 +79,9 @@ async function showSplash(error) {
 async function start() {
   if (starting || quitting) return;
   starting = true;
+  const cold = forceCold;
+  forceCold = false;
   try {
-    await showSplash();
-    await host?.stop();
     const root = path.resolve(__dirname, '../../..');
     const runtime = app.isPackaged ? path.join(process.resourcesPath, 'runtime') : root;
     const node = app.isPackaged ? path.join(runtime, 'node.exe') : (process.env.PILOT_NODE_PATH || path.join(root, '.runtime/node.exe'));
@@ -48,15 +94,70 @@ async function start() {
     const lifecycle = app.isPackaged ? path.join(`${app.getAppPath()}.unpacked`, 'dist/lifecycle.mjs') : path.join(root, 'apps/desktop/src/lifecycle.mjs');
     const pluginPatch = readFileSync(path.join(bundle, 'cordis.patch.yml'), 'utf8');
     writeFileSync(patch, pluginPatch.replace(/name:\s*['"]?dsh-pilot['"]?/g, `name: ${JSON.stringify(path.join(bundle, 'lib/index.js').replaceAll('\\', '/'))}`));
-    host = new DshHost({ node, entry, home, patch, lifecycle, cwd: app.getPath('userData'), log });
+    const fingerprint = hostFingerprint([
+      pluginPatch,
+      contentStamp(path.join(bundle, 'lib/index.js')),
+      contentStamp(path.join(runtime, 'node_modules/@deepseek-ai/dsh/package.json')),
+      contentStamp(path.join(home, 'profiles/web/package.json')),
+      process.env.PILOT_NODE_PATH ?? '',
+    ]);
+    // 先试复用：同一份代码 + host 还活着 + 端口还能应答，就跳过整段冷启动。
+    const cached = persistHost && !cold ? readHostCache() : undefined;
+    if (cached && cached.fingerprint === fingerprint && isAlive(cached.pid) && await probeHost(cached.url)) {
+      log(`Host reuse: dsh web already running (pid ${cached.pid}, started ${new Date(cached.startedAt ?? 0).toISOString()})`);
+      await host?.stop();
+      host = undefined;
+      hostPersisted = true;
+      if (quitting) return;
+      origin = new URL(cached.url).origin;
+      await window.loadURL(cached.url);
+      log('DSH ready; desktop page loaded (reused host)');
+      return;
+    }
+    await showSplash();
+    await host?.stop();
+    host = undefined;
+    if (cached && isAlive(cached.pid)) {
+      log(`Host cache unusable (${cached.fingerprint === fingerprint ? 'port down' : 'code changed'}), recycling pid ${cached.pid}`);
+      await killTree(cached.pid);
+      writeHostCache({});
+    }
+    // 首次启动把产品预置插件写进 profile（知识库 / 多角色群聊）。
+    const provision = await ensurePresets({
+      runtime, node, entry, home, log,
+      status: text => {
+        try {
+          void window?.webContents.executeJavaScript(`document.getElementById('status').textContent=${JSON.stringify(text)}`).catch(() => {});
+        } catch { /* 启动页可能已经关闭 */ }
+      },
+    });
+    log(`Provision: ${provision.map(item => `${item.name}=${item.status}`).join(', ')}`);
+    hostLogFile = path.join(app.getPath('userData'), 'logs/dsh-host.log');
+    host = new DshHost({
+      node, entry, home, patch, lifecycle, cwd: app.getPath('userData'), log, logFile: hostLogFile,
+      trustedHosts: remote.enabled && remote.host ? [`${remote.host}:${remote.port}`] : [],
+    });
     host.on('exit', info => {
       log(`Host exit: ${JSON.stringify(info)}`);
+      writeHostCache({});
       if (!info.expected && !quitting && !starting) void showSplash('DSH 服务意外退出，可重试启动。');
     });
     const url = await host.start();
     if (quitting) return;
-    origin = new URL(url).origin;
-    await window.loadURL(url);
+    // 远程模式：窗口和外部浏览器都只走网关；dsh web 仍只监听回环。
+    let pageUrl = url;
+    if (remote.enabled) {
+      if (!remote.host) throw new Error('PILOT_REMOTE=1 时必须设置 PILOT_REMOTE_HOST（本机局域网地址）');
+      const auth = new PilotAuth(path.join(home, 'storages', 'dsh-pilot', 'auth.json'));
+      await auth.open();
+      gateway = await startGateway({ upstream: url, auth, listenHost: remote.host, listenPort: remote.port });
+      pageUrl = gateway.url;
+      log(`Gateway listening on ${gateway.url} (auth mode: ${auth.mode})`);
+    }
+    if (persistHost) writeHostCache({ url, pid: host.child?.pid, fingerprint, startedAt: Date.now(), version: app.getVersion() });
+    hostPersisted = true;
+    origin = new URL(pageUrl).origin;
+    await window.loadURL(pageUrl);
     log('DSH ready; desktop page loaded');
     if (smoke) {
       await new Promise(r => setTimeout(r, 5000));
@@ -195,6 +296,8 @@ async function start() {
   } catch (error) {
     log(error.stack ?? error);
     await host?.stop();
+    hostPersisted = false;
+    writeHostCache({});
     if (smoke) { process.exitCode = 1; app.quit(); }
     else if (!quitting) await showSplash(error.message);
   } finally { starting = false; }
@@ -206,7 +309,15 @@ if (locked) {
     event.preventDefault();
     if (quitting) return;
     quitting = true;
-    void (async () => { await host?.stop(); tray?.destroy(); finalExit = true; app.quit(); })();
+    void (async () => {
+      // 正常退出不杀 host：让 dsh web 留在后台，下次启动直接复用（省掉 25–30s 冷启动）。
+      // smoke 用一次性 home、或本次启动没成功登记缓存时必须停掉，避免留下没人认领的进程。
+      if (!persistHost || !hostPersisted) await host?.stop();
+      if (gateway) { await gateway.close(); gateway = undefined; }
+      tray?.destroy();
+      finalExit = true;
+      app.quit();
+    })();
   });
   app.whenReady().then(async () => {
     const data = app.getPath('userData');
@@ -222,12 +333,31 @@ if (locked) {
     window.webContents.on('will-navigate', (event, url) => { if (!origin || new URL(url).origin !== origin) event.preventDefault(); });
     window.webContents.setWindowOpenHandler(({ url }) => { if (/^https?:\/\//i.test(url)) void shell.openExternal(url); return { action: 'deny' }; });
     window.webContents.on('console-message', (_event, _level, message) => log(`[renderer] ${message}`));
+    // 没有应用菜单就没有默认的 Ctrl+R：这里补一个页面刷新快捷键（F5 同效），
+    // 改客户端插件后不必整个重启应用。调试用，不打断正在进行的会话。
+    window.webContents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown') return;
+      const reload = (input.control || input.meta) && input.key.toLowerCase() === 'r';
+      if (!reload && input.key !== 'F5') return;
+      event.preventDefault();
+      log('Renderer reload requested by shortcut');
+      window.webContents.reload();
+    });
     window.webContents.on('render-process-gone', (_event, detail) => { log(`Renderer exited: ${detail.reason}`); if (!quitting) void showSplash('页面进程已退出，请重试。'); });
     const icon = nativeImage.createFromPath(path.join(resources, 'icon.png'));
     tray = new Tray(icon);
     tray.setToolTip('Pilot');
     tray.on('click', show);
-    tray.setContextMenu(Menu.buildFromTemplate([{ label: '打开 Pilot', click: show }, { label: '重启服务', click: () => { show(); void start(); } }, { label: '查看日志', click: () => shell.openPath(path.dirname(logPath)) }, { label: '检查更新', click: checkForUpdates }, { type: 'separator' }, { label: '退出', click: () => app.quit() }]));
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: '打开 Pilot', click: show },
+      { label: '重启服务', click: () => { show(); forceCold = true; void start(); } },
+      { label: '查看日志', click: () => shell.openPath(path.dirname(logPath)) },
+      { label: '检查更新', click: checkForUpdates },
+      { type: 'separator' },
+      // 「退出」保留后台服务（下次秒开）；要连服务一起停用这一项。
+      { label: '退出（后台服务保留）', click: () => app.quit() },
+      { label: '停止服务并退出', click: () => { persistHost = false; forceCold = true; app.quit(); } },
+    ]));
     Menu.setApplicationMenu(null);
     ipcMain.handle('pilot:info', event => { allowed(event); return { name: 'Pilot', version: app.getVersion(), platform: process.platform, frameless: true }; });
     ipcMain.handle('pilot:retry', event => { allowed(event); void start(); });

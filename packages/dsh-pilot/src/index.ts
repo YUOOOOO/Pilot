@@ -1,8 +1,7 @@
-// Pilot 宿主半：持有本机数据、暴露 HTTP 面与 Agent 工具。
-// 数据落在 $DSH_HOME/storages/dsh-pilot/pilot.json，与 dsh-dev-workbench 的目录约定一致。
 import { join } from 'node:path';
 import { resolveDshHome } from '@deepseek-ai/dsh-home-paths';
 import { PilotStore } from './host/store.mjs';
+import { PilotAuth } from './host/auth.mjs';
 import { createPilotHandler } from './host/routes.mjs';
 import { registerPilotTools } from './host/tools';
 import { product } from './product';
@@ -42,7 +41,8 @@ function withService(ctx: HostContext, name: string, run: (service: any) => void
 export function apply(ctx: HostContext): void {
   ctx.provide('pilotProduct', product);
 
-  const file = join(resolveDshHome(undefined, process.env), 'storages', 'dsh-pilot', 'pilot.json');
+  const home = resolveDshHome(undefined, process.env);
+  const file = join(home, 'storages', 'dsh-pilot', 'pilot.json');
   const store = new PilotStore(file);
   const ready: Promise<PilotStore> = store.open().then(opened => {
     console.log(`[pilot] store ready: ${opened.file}${opened.recoveredFrom ? ` (recovered, backup ${opened.recoveredFrom})` : ''}`);
@@ -60,9 +60,25 @@ export function apply(ctx: HostContext): void {
   ctx.provide('pilotStore', service);
   ctx.effect(() => () => { void store.close(); }, 'pilot: store lifecycle');
 
+  // 鉴权：/pilot/* 不再默认「反正只有本机能访问」，改为显式判定（默认仅回环放行）。
+  const authFile = join(home, 'storages', 'dsh-pilot', 'auth.json');
+  const auth = new PilotAuth(authFile);
+  const authReady = auth.open().then(opened => {
+    console.log(`[pilot] auth ready: mode=${opened.mode} file=${authFile}`);
+    return opened;
+  }).catch(error => {
+    console.error('[pilot] auth failed to open, falling back to loopback-only:', error);
+    return auth;
+  });
+
   withService(ctx, 'webServer', webServer => {
+    const route = createPilotHandler(store, () => ({ ...product, store: file }), auth);
+    const handler = async (req: any, res: any) => {
+      await authReady;
+      return route(req, res);
+    };
     ctx.effect(
-      () => webServer.register({ kind: 'prefix', path: '/pilot', handler: createPilotHandler(store, () => ({ ...product, store: file })) }),
+      () => webServer.register({ kind: 'prefix', path: '/pilot', handler }),
       'pilot: http surface',
     );
     console.log('[pilot] http surface mounted at /pilot');

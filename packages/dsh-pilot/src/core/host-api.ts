@@ -57,3 +57,26 @@ export async function saveHostTask(input: { title: string; status?: string; note
     return null;
   }
 }
+
+export interface GroupchatGroup {
+  id: string;
+  name: string;
+  brief: string;
+  members: number;
+  /** 群消息行数，用来算未读 */
+  seq: number;
+  /** group.json 的修改时间（epoch ms），用于排序 */
+  updatedAt: number;
+}
+
+/** 多角色群聊的群清单（由宿主读插件的落地数据，插件未装时返回空数组） */
+export async function readGroupchatGroups(): Promise<GroupchatGroup[]> {
+  const response = await request('/pilot/groupchat');
+  if (!response) return [];
+  try {
+    const payload = (await response.json()) as { groups?: GroupchatGroup[] };
+    return Array.isArray(payload.groups) ? payload.groups : [];
+  } catch {
+    return [];
+  }
+}

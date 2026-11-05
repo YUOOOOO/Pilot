@@ -11,6 +11,8 @@ export interface WorkbenchSnapshot {
   busy: boolean;
   /** 设置弹窗是否打开（齿轮按钮与 ⌘, 共用） */
   settingsOpen: boolean;
+  /** 设置弹窗打开时定位的分组 id；null = 默认停在「本机偏好」 */
+  settingsSection: string | null;
   /** 菜单列是否正在显示宿主的会话/项目浏览器（agent 页） */
   agent: boolean;
   prefs: PilotPrefs;
@@ -25,6 +27,7 @@ let snapshot: WorkbenchSnapshot = {
   status: '',
   busy: false,
   settingsOpen: false,
+  settingsSection: null,
   agent: initialAgent,
   prefs: initialPrefs,
 };
@@ -58,7 +61,17 @@ export function togglePalette(open = !snapshot.palette): void {
 }
 
 export function toggleSettings(open = !snapshot.settingsOpen): void {
-  patch({ settingsOpen: open });
+  patch(open ? { settingsOpen: true } : { settingsOpen: false, settingsSection: null });
+}
+
+/** 直接打开设置并定位到某个分组（侧栏「知识库」图标走这条） */
+export function openSettings(section?: string): void {
+  patch({ settingsOpen: true, settingsSection: section ?? null });
+}
+
+/** 设置已经打开时切换分组（面板里的「打开本地模型」这类跳转走这条） */
+export function selectSettingsSection(section: string | null): void {
+  patch({ settingsSection: section });
 }
 
 /** 切换 menu 列内容：true = 宿主的会话/项目浏览器，false = Pilot 页面列表 */

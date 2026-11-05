@@ -2,6 +2,12 @@
 - id: ui-brand-official
   disabled: true
 
+# Pilot boots as `dsh web`, so DSH's own gate (profile name must be `desktop`)
+# keeps the inlined browser tab off — which also removes the `browser` tab kind
+# that plugins (better-sidebar 的 sidebar_open 打开 URL) rely on.
+- id: ui-sidebar-browser
+  disabled: false
+
 - insert:
     - id: pilot-product
       name: dsh-pilot

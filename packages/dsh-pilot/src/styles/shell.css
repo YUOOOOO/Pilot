@@ -59,7 +59,6 @@
   --dsh-scrollbar-thumb-hover: rgb(0 0 0 / 34%);
 }
 
-
 /* ── 纸媒色板（暗色孪生）：暖炭黑 + 淡青绿 ───────────────────────── */
 body[data-ds-dark-theme] .pilot-sidebar,
 body[data-ds-dark-theme] .pilot-home {
@@ -206,9 +205,10 @@ body[data-ds-dark-theme] .pilot-home[data-accent='graphite'] {
 .pilot-sidebar[data-collapsed='true'] .pilot-activitybar {
   border-right: 0;
 }
-[class*='frame']:has(.pilot-sidebar[data-collapsed='true']) {
-  grid-template-columns: 48px minmax(0px, 1fr) minmax(0px, 0px) !important;
-}
+/* 注意：这里**不要**再覆盖 frame 的 grid-template-columns。
+   以前为了把收起后的左列压到 48px，顺手把第三列（右侧栏）写死成 0px，
+   结果宿主的 layout 认为右侧栏是收起的、而 sidebar-right 自己的 store 仍认为展开，
+   「展开右侧栏」按钮因此不渲染；切换会话状态重新同步时才突然弹出来。 */
 
 /* ── 图标轨 ───────────────────────────────────────────────────────── */
 .pilot-activitybar {
@@ -1097,8 +1097,12 @@ div:has(> .pilot-sidebar) > * {
 .pilot-menu-header { -webkit-app-region: drag; }
 .pilot-menu-header button { -webkit-app-region: no-drag; }
 
-/* 右侧栏收起时内容列会顶到窗口最右：让会话标题行的操作按钮避开右上角窗口按钮 */
-[data-rightbar-collapsed] header:has([data-conversation-header-leading]) [class*='titleRow'] { padding-right: 140px; }
+/* 右侧栏收起时内容列会顶到窗口最右：让会话标题行的操作按钮避开右上角窗口按钮。
+   只给标题行留内边距（整行内容左移），不要再给 headerCorner 加外边距 ——
+   两者叠加会把整组按钮推离窗口按钮一大截（实测多推了 136px）。 */
+[data-rightbar-collapsed] header:has([data-conversation-header-leading]) [class*='titleRow'] {
+  padding-right: calc(var(--pilot-window-controls, 138px) + 4px);
+}
 
 /* 会话头部：标题行抬到与右上角窗口按钮（Electron overlay 高 36px）同一水平中线；去掉下方分割线 */
 header:has([data-conversation-header-leading]) { padding-top: 0; min-height: 0; border-bottom: none; }
@@ -1113,10 +1117,31 @@ header:has([data-conversation-header-leading]) [class*='headerCorner'] { -webkit
 /* 去掉「对话 / 轨迹」视图标签行 */
 header:has([data-conversation-header-leading]) [class*='tabs'] { display: none; }
 
-/* 右侧栏顶部的「收起 / 全屏 / 展开」按钮与右上角原生窗口按钮重叠，整组左移让出窗口按钮的位置 */
+/* 窗口变窄时头部右侧会互相压住：标题簇（flex:1）里的动作条是 flex:none、
+   内容按本身宽度排，撑不住就溢出自己的盒子，压到外面「打开方式」那排（文件夹+˅）。
+   两步兜底：
+     1. 标题簇裁掉溢出，保证永远不会压到相邻元素；
+     2. 窄窗口先把「N 个后台任务运行中」这条让掉（只是提示，任务面板在侧栏「任务动态」里）。 */
+header:has([data-conversation-header-leading]) [class*='titleCluster'] {
+  overflow: hidden;
+}
+header:has([data-conversation-header-leading]) [class*='headerActions'] {
+  min-width: 0;
+}
+header:has([data-conversation-header-leading]) [class*='headerActions'] > * {
+  min-width: 0;
+}
+@media (max-width: 1120px) {
+  header:has([data-conversation-header-leading]) [class*='headerActions'] button[aria-label*='后台任务'] {
+    display: none;
+  }
+}
+
+/* 右侧栏顶部的「收起 / 全屏 / 展开」按钮与右上角原生窗口按钮重叠：
+   整组左移「实测的窗口按钮宽度」。以前写死 160px，窗口宽度/缩放一变就会多移、
+   甚至被父容器裁掉（刷新后按钮“消失”、切会话才又出现）。 */
 [data-sidebar-right-toggle],
-[data-sidebar-right-mode],
-[data-sidebar-right-expand] { translate: -140px 0; }
+[data-sidebar-right-mode] { translate: calc(-1 * var(--pilot-window-controls, 138px)) 0; }
 
 /* 「快速查看会话记录」的竖向标记条（turn rail）：从右侧移到左侧。
    宿主的 .eGxaPq_mark:before 与这里同权重，靠 !important 保证「左对齐 + 从左侧向右展开」。 */
@@ -1309,10 +1334,12 @@ html[data-pilot-collapsing] [class*='frame'] {
   color: var(--pilot-ink3);
   text-decoration: line-through;
 }
-/* 当前打开的会话：选中态高亮 */
+/* 当前打开的会话：选中态高亮（背景放在行外壳上，和悬停一样铺满整行） */
+.pilot-agent-row-wrap:has(.pilot-agent-row[aria-current='page']) {
+  background: var(--pilot-accent-soft);
+}
 .pilot-agent-row[aria-current='page'] {
   color: var(--pilot-accent-strong);
-  background: var(--pilot-accent-soft);
   font-weight: 600;
 }
 /* 选中行右侧的 ⋯ 也跟随强调色（否则看起来还是灰的、和选中态不搭） */
@@ -1331,6 +1358,11 @@ html[data-pilot-collapsing] [class*='frame'] {
   border-radius: 50%;
   background: var(--pilot-accent);
   animation: pilot-agent-pulse 1.2s ease-in-out infinite;
+}
+/* 会话在等用户处理（审批卡）：同一颗点转成紫色，暂停脉冲让它更显眼 */
+.pilot-agent-running[data-approval='true'] {
+  background: #7c3aed;
+  animation-duration: 1.8s;
 }
 @keyframes pilot-agent-pulse {
   0%, 100% { opacity: .3; transform: scale(.75); }
@@ -1540,6 +1572,36 @@ html[data-pilot-collapsing] [class*='frame'] {
 .pilot-agent-dialog-ok:hover {
   background: var(--pilot-accent-strong);
 }
+/* 菜单里的分隔线 + 危险项（「从列表移除此项目」） */
+.pilot-agent-pop-sep {
+  height: 1px;
+  margin: 4px 2px;
+  background: var(--pilot-line-soft);
+}
+.pilot-agent-pop-danger {
+  color: var(--pilot-seal);
+}
+.pilot-agent-pop-danger:hover {
+  color: var(--pilot-seal);
+  background: var(--pilot-seal-soft);
+}
+/* 确认弹窗比重命名弹窗宽一点，能放下一段说明 */
+.pilot-agent-dialog-wide {
+  width: 264px;
+}
+.pilot-agent-dialog-title {
+  color: var(--pilot-ink);
+  font-family: var(--pilot-font);
+  font-size: 13px;
+  font-weight: 600;
+}
+.pilot-agent-dialog-text {
+  margin: 0;
+  color: var(--pilot-ink2);
+  font-family: var(--pilot-font);
+  font-size: 12px;
+  line-height: 1.6;
+}
 
 /* 新会话（hero）页隐藏「工作区选择」那一行（会话已默认绑定工作区，不需要再选） */
 [class*='heroWorkspaceRow'] { display: none; }
@@ -1552,3 +1614,672 @@ html[data-pilot-collapsing] [class*='frame'] {
 .pilot-agent-project .pilot-agent-row-wrap,
 .pilot-agent-project .pilot-agent-more,
 .pilot-agent-project .pilot-agent-empty { margin-left: 14px; }
+
+/* ── 知识库设置：文本/数字输入与说明文字 ─────────────────────────────── */
+.pilot-input {
+  width: 220px;
+  max-width: 100%;
+  height: 30px;
+  padding: 0 10px;
+  border: 1px solid var(--pilot-line);
+  border-radius: 8px;
+  background: var(--pilot-paper);
+  color: var(--pilot-ink);
+  font: inherit;
+  font-size: 12.5px;
+}
+.pilot-input::placeholder {
+  color: var(--pilot-ink3);
+}
+.pilot-input:focus-visible {
+  outline: 2px solid var(--pilot-accent-soft);
+  border-color: var(--pilot-accent);
+  outline-offset: 1px;
+}
+.pilot-input:disabled {
+  opacity: 0.55;
+}
+.pilot-input.is-number {
+  width: 96px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.pilot-settings-note {
+  font-size: 11.5px;
+  color: var(--pilot-ink3);
+}
+.pilot-settings-note:empty {
+  display: none;
+}
+
+/* ── 知识库页面：把插件的整窗浮层面板压进主内容区 ─────────────────── */
+.pilot-view:has(> .pilot-kb-page),
+.pilot-home:has(.pilot-kb-page) {
+  max-width: none;
+  gap: 0;
+  padding: 0;
+  height: 100%;
+  min-height: 0;
+}
+.pilot-kb-page {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+.pilot-kb-page .kb-panel-in {
+  position: absolute !important;
+  inset: 0 !important;
+  /* 整窗浮层压进内容区，并整体下移出原生窗口按钮（最小化/最大化/关闭）的 50px 高度：
+     面板自身、召回测试抽屉、知识库设置抽屉都是这个容器里的 absolute 层，一起避开。 */
+  top: 50px !important;
+  z-index: 0 !important;
+}
+
+/* 面板顶栏自带的 ✕ 没有意义（关闭 = 切页），去掉。 */
+.pilot-kb-page .kb-panel-in > div:first-child > span:last-child > button:last-child {
+  display: none !important;
+}
+
+/* 每库设置：复用插件自带表单，限制阅读宽度免得在宽弹窗里拉太开 */
+.pilot-kb-rag {
+  max-width: 760px;
+}
+
+/* 面板头部的「设置」图标：配置已统一到 Pilot 设置里，这里不再留死按钮 */
+.pilot-kb-page .kb-panel-in button.kb-iconbtn[title='设置'] {
+  display: none !important;
+}
+
+/* ── 知识库页：Lock 住侧栏 ─────────────────────────────────────────────
+   进知识库时侧栏自动收起，且不允许再展开（Logo 与折叠按钮都不再响应），
+   菜单列隐藏、列宽固定为图标轨，避免出现「知识库页面 + 菜单列表」的四栏怪状。 */
+.pilot-sidebar[data-kb-page='true'] .pilot-menu {
+  display: none;
+}
+.pilot-sidebar[data-kb-page='true'] .pilot-collapse-trigger {
+  display: none;
+}
+/* 同上：不覆盖 frame 的三列网格，避免把右侧栏列宽写死成 0 造成状态不同步。 */
+
+/* 并入知识库设置的本地模型面板：限制宽度，内部表单自己滚动 */
+.pilot-kb-models {
+  max-width: 780px;
+}
+
+/* ── 右侧栏（dockkit）顶栏按钮排布 ──────────────────────────────────────
+   目标：三个面板按钮紧挨成一组，整组停在窗口按钮左侧，顺序（左→右）：
+     ……tabs…… [放大][分栏][收起侧边栏] | [最小化][最大化][关闭]
+   实测结构：strip 子元素 = tabs / fill / span(分栏) / chrome(放大+收起)。
+   分栏要夹在两个 chrome 按钮中间，容器级排序做不到，所以把 chrome 设成
+   `display: contents` 让它的两个按钮直接参与 strip 的 flex 排序，再按 order 指定位置。 */
+[data-sidebar-right-panel] [data-dockkit-strip] {
+  padding-inline-end: calc(var(--pilot-window-controls, 138px) + 8px);
+  gap: 8px;
+}
+[data-sidebar-right-panel] [data-dockkit-strip] > * {
+  margin-inline: 0 !important;
+}
+[data-sidebar-right-panel] [data-dockkit-strip] > [class*='stripFill'] {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding-inline: 0 !important;
+}
+/* 拆掉 chrome 容器，让「放大 / 收起」直接排进 strip */
+[data-sidebar-right-panel] [data-dockkit-strip-chrome] {
+  display: contents !important;
+}
+/* 顺序：放大 → 分栏 → 收起侧边栏；分栏（span）默认 order 0，会被排到最左，显式给 2 */
+[data-sidebar-right-panel] [data-dockkit-strip] > span {
+  order: 2;
+}
+[data-sidebar-right-panel] [data-dockkit-strip] [data-sidebar-right-mode] {
+  order: 1;
+  translate: none !important;
+}
+[data-sidebar-right-panel] [data-dockkit-strip] [data-sidebar-right-toggle] {
+  order: 3;
+  translate: none !important;
+}
+
+/* 右侧栏 tab 内容区顶部留 14px：窗口按钮的原生 hover 高亮是系统绘制的，无法裁剪。
+   实测结构：pane(section[data-dockkit-pane]) 里依次是 header(strip) 和 body，
+   body 没有 data 属性，只能按「pane 的最后一个 div 子节点」定位 —— 这样只下移内容，
+   tab 条和右上角那排按钮位置不动。 */
+[data-sidebar-right-panel] [data-dockkit-pane] > div:last-child {
+  padding-top: 14px;
+}
+
+/* agent 菜单列：群聊行右侧的人数 */
+.pilot-agent-row-meta {
+  margin-left: auto;
+  padding-left: 8px;
+  font-size: 11px;
+  color: var(--pilot-ink3);
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* 多角色群聊面板：群列表已并入 agent 菜单列，面板里不再重复显示左侧群列表列。
+   注意只隐藏「渲染」，节点保留 —— agent 里的「＋ 新建群聊」会程序化点击它底部的按钮。 */
+#mgc-rail {
+  display: none !important;
+}
+
+/* ── 多角色群聊：并入 agent 后的样式与主题 ────────────────────────────── */
+
+/* 群聊行按「二级会话」缩进，和项目下的会话列表保持一致 */
+.pilot-agent-group-list {
+  margin-left: 14px;
+}
+
+/* 未读标记：和会话行里的状态点同一套视觉，用强调色 */
+.pilot-agent-unread {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--pilot-accent);
+}
+
+/* ── 多角色群聊：配色并回会话页 ──────────────────────────────────────────
+   插件 v1.3 起自带一套写死的深色「游戏面板」主题：先把 --mgc-* 变量表整张改成
+   深色，再把 --dsw-alias-* 反向映射到这些变量上，还额外写死了一堆
+   rgba(255,255,255,…)/深色 hex。于是群聊页是深底浅字，会话页是白底近黑字。
+   修法分两步：
+     1) 把 --mgc-* 改回宿主浅色 token 的实际取值 —— 插件把 --dsw-alias-*
+        反向映射到它们，所以基础样式会自动跟会话页一致；
+     2) 深色主题里写死颜色的规则逐条改回 token。
+   选择器统一加 :root 前缀：插件 CSS 是运行时注入的，同权重时后注入者胜，
+   加一级特异性才能稳定压过它。注意 --mgc-* 只能写字面色值，不能引用
+   --dsw-alias-*，否则和插件的反向映射互相引用成环。 */
+:root .mgc-page,
+:root .mgc-onboarding,
+:root .mgc-settingsPage,
+:root .mgc-loading,
+:root .mgc-emptyState,
+:root .mgc-manageLayer {
+  color-scheme: light;
+  /* 与会话页同一套：#fff 底 / #0f1115 主字 / #61666b 次字 / 4% 与 10% 分割线 */
+  --mgc-bg: #fff;
+  --mgc-panel: #fff;
+  --mgc-panel2: #f9fafb;
+  --mgc-line: rgb(0 0 0 / 4%);
+  --mgc-lineStrong: rgb(0 0 0 / 10%);
+  --mgc-text: #0f1115;
+  --mgc-muted: #61666b;
+  --mgc-yellow: #0f1115;
+  --mgc-yellowSoft: rgb(15 17 21 / 8%);
+  --mgc-cyan: #61666b;
+  --dsw-alias-bg-overlay: #e9ecf2;
+  --dsw-alias-state-warn-primary: #f59e0b;
+  --dsw-alias-state-error-primary: #ec1313;
+  --dsw-alias-state-success-primary: #22c55e;
+}
+
+/* 底色：去掉青色/黄色径向渐变与深色面板 */
+:root .mgc-page {
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+:root .mgc-onboarding,
+:root .mgc-settingsPage {
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+:root .mgc-main,
+:root .mgc-header,
+:root .mgc-composer {
+  background: none;
+}
+:root .mgc-header {
+  border-bottom-color: var(--dsw-alias-border-l1);
+}
+/* 顶栏顶部那道青色渐变线 */
+:root .mgc-header:before {
+  display: none;
+}
+
+/* 「群聊中」徽标：灰底灰字 + 绿点，和会话页的状态标记同调 */
+:root .mgc-live {
+  border-color: var(--dsw-alias-border-l2);
+  background: rgb(0 0 0 / 4%);
+  color: var(--dsw-alias-label-secondary);
+}
+:root .mgc-live i {
+  background: var(--dsw-alias-state-success-primary);
+  box-shadow: none;
+}
+
+/* 按钮：透明底 + 分割线，主按钮用宿主近黑 */
+:root .mgc-btn {
+  border-color: var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+:root .mgc-btn:hover:not(:disabled) {
+  border-color: var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+:root .mgc-btnPrimary {
+  border-color: var(--dsw-alias-brand-primary);
+  background: var(--dsw-alias-brand-primary);
+  color: #fff;
+}
+:root .mgc-btnPrimary:hover:not(:disabled) {
+  border-color: #232324;
+  background: #232324;
+  color: #fff;
+}
+:root .mgc-btnDanger {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);
+  color: var(--dsw-alias-state-error-primary);
+}
+:root .mgc-iconBtn:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+/* 消息区 */
+:root .mgc-av {
+  border-color: var(--dsw-alias-border-l2);
+}
+:root .mgc-avOwner {
+  border-color: transparent;
+  background: var(--dsw-alias-brand-primary);
+  color: #fff;
+}
+:root .mgc-msgOwner .mgc-av {
+  border-color: var(--dsw-alias-border-l2);
+  box-shadow: none;
+}
+:root .mgc-name,
+:root .mgc-msgOwner .mgc-name {
+  color: var(--dsw-alias-label-primary);
+}
+:root .mgc-time {
+  color: var(--dsw-alias-label-secondary);
+}
+:root .mgc-text {
+  border-color: var(--dsw-alias-border-l1);
+  background: #f7f8fa;
+  color: var(--dsw-alias-label-primary);
+  box-shadow: none;
+}
+:root .mgc-msgOwner .mgc-text {
+  border-color: var(--dsw-alias-border-l1);
+  background: #eef1f4;
+  color: var(--dsw-alias-label-primary);
+  box-shadow: none;
+}
+:root .mgc-mention,
+:root .mgc-msgOwner .mgc-mention {
+  background: rgb(0 0 0 / 6%);
+  color: var(--dsw-alias-brand-primary);
+}
+:root .mgc-action {
+  color: var(--dsw-alias-label-secondary);
+}
+:root .mgc-action:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+:root .mgc-usage {
+  color: var(--dsw-alias-label-tertiary);
+}
+:root .mgc-dot {
+  background: var(--dsw-alias-label-tertiary);
+}
+:root .mgc-tag {
+  background: rgb(0 0 0 / 5%);
+  color: var(--dsw-alias-label-secondary);
+}
+:root .mgc-tagPin {
+  background: rgb(15 17 21 / 8%);
+  color: var(--dsw-alias-label-primary);
+}
+:root .mgc-tagWarn {
+  background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 12%, transparent);
+  color: var(--dsw-alias-state-warn-primary);
+}
+:root .mgc-notice {
+  border-color: var(--dsw-alias-border-l1);
+  background: #f7f8fa;
+  color: var(--dsw-alias-label-secondary);
+}
+:root .mgc-noticeWarn {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 24%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent);
+  color: var(--dsw-alias-state-warn-primary);
+}
+:root .mgc-foldBtn {
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+}
+:root .mgc-foldBtn:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+:root .mgc-budgetBar {
+  background: rgb(0 0 0 / 8%);
+}
+:root .mgc-budgetFill[data-over='true'] {
+  background: var(--dsw-alias-state-error-primary);
+}
+
+/* 输入区：白底 + 细边框，focus 走宿主焦点色 */
+:root .mgc-composer {
+  border-top-color: var(--dsw-alias-border-l1);
+}
+:root .mgc-inputWrap {
+  border-color: var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-base);
+  box-shadow: none;
+}
+:root .mgc-inputWrap:focus-within {
+  border-color: var(--dsw-alias-focus-border);
+  box-shadow: 0 0 0 3px rgb(0 0 0 / 5%);
+}
+:root .mgc-textarea::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+:root .mgc-send {
+  background: var(--dsw-alias-brand-primary);
+  color: #fff;
+}
+:root .mgc-send:hover:not(:disabled) {
+  background: #232324;
+}
+:root .mgc-stop {
+  color: var(--dsw-alias-state-error-primary);
+}
+:root .mgc-count,
+:root .mgc-composerHint {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* 提示条 / 弹层 / 管理抽屉 / 表单 */
+:root .mgc-banner {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-error-primary) 25%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent);
+  color: var(--dsw-alias-state-error-primary);
+}
+:root .mgc-bannerWarn {
+  border-color: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 25%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-state-warn-primary) 8%, transparent);
+  color: var(--dsw-alias-state-warn-primary);
+}
+:root .mgc-menu {
+  border-color: var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-base);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 12%);
+}
+:root .mgc-menuRow:hover,
+:root .mgc-menuRow:focus-visible {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+:root .mgc-backdrop {
+  background: rgb(0 0 0 / 28%);
+}
+:root .mgc-drawer {
+  border-left-color: var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-base);
+  box-shadow: -24px 0 60px rgb(0 0 0 / 10%);
+}
+:root .mgc-drawerBody {
+  background: var(--dsw-alias-bg-base);
+}
+:root .mgc-card,
+:root .mgc-section {
+  border-color: var(--dsw-alias-border-l1);
+  background: var(--dsw-alias-bg-base);
+}
+:root .mgc-label {
+  color: var(--dsw-alias-label-secondary);
+}
+:root .mgc-input,
+:root .mgc-select,
+:root .mgc-textarea2 {
+  border-color: var(--dsw-alias-border-l2);
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+:root .mgc-input:focus,
+:root .mgc-select:focus,
+:root .mgc-textarea2:focus {
+  border-color: var(--dsw-alias-focus-border);
+  box-shadow: 0 0 0 3px rgb(0 0 0 / 5%);
+}
+:root .mgc-memberRow,
+:root .mgc-groupRow {
+  border-color: var(--dsw-alias-border-l1);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+}
+:root .mgc-memberRow:hover,
+:root .mgc-groupRow:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+:root .mgc-memberRow[data-active='true'],
+:root .mgc-groupRow[data-active='true'] {
+  border-color: var(--dsw-alias-brand-primary);
+  background: rgb(15 17 21 / 4%);
+}
+:root .mgc-pathText {
+  color: var(--dsw-alias-label-tertiary);
+}
+:root .mgc-success {
+  color: var(--dsw-alias-state-success-primary);
+}
+:root .mgc-warnText {
+  color: var(--dsw-alias-state-warn-primary);
+}
+:root .mgc-error {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+/* 窄屏时插件会给群列表加一层深色遮罩；群列表已经挪进 agent 菜单，面板里不该再出遮罩 */
+:root .mgc-railBackdrop {
+  display: none !important;
+}
+
+/* 群聊面板顶栏右侧的「搜索 / 管理 / 导出」原本压到原生窗口按钮下面。
+   面板内容从窗口顶边开始排版（插件只处理了 macOS 的 top clearance），
+   所以这里按窗口安全区宽度给 header 右侧留白，让剩在顶栏的搜索按钮停到窗口按钮左侧。 */
+.mgc-page .mgc-header {
+  padding-right: calc(var(--pilot-window-controls, 138px) + 26px);
+}
+
+/* 「管理 / 导出」已经收进 agent 里的群聊行 ⋯ 菜单，顶栏只留搜索。
+   这两个按钮仍然渲染在 DOM 里（只是不显示）—— agent 菜单里点「管理 / 导出」时，
+   sidebar 会定位到这里再程序化点击，走的还是插件自己的入口（同一个管理抽屉）。 */
+:root .mgc-headActions .mgc-btn {
+  display: none;
+}
+
+/* ── 工作台 · 费用概览（数据来自 dsh-cost-meter） ───────────────── */
+.pilot-cost-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 12px;
+  margin-top: 4px;
+}
+.pilot-cost-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--pilot-line-soft);
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--pilot-sheet) 88%, var(--pilot-ink) 4%);
+}
+.pilot-cost-stat.is-primary {
+  border-color: color-mix(in oklab, var(--pilot-accent) 34%, transparent);
+  background: color-mix(in oklab, var(--pilot-accent) 7%, var(--pilot-sheet));
+}
+.pilot-cost-label {
+  color: var(--pilot-ink3);
+  font-family: var(--pilot-font);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+.pilot-cost-value {
+  color: var(--pilot-ink);
+  font-family: var(--pilot-font);
+  font-size: 22px;
+  font-weight: 650;
+  line-height: 1.25;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.pilot-cost-stat.is-primary .pilot-cost-value {
+  font-size: 28px;
+}
+.pilot-cost-meta {
+  color: var(--pilot-ink3);
+  font-family: var(--pilot-font);
+  font-size: 11.5px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.pilot-cost-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+  color: var(--pilot-ink2);
+  font-size: 12.5px;
+  line-height: 1.7;
+}
+.pilot-cost-cmd {
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--pilot-line-soft);
+  border-radius: 8px;
+  background: color-mix(in oklab, var(--pilot-ink) 4%, var(--pilot-sheet));
+  color: var(--pilot-ink2);
+  font-family: var(--pilot-mono);
+  font-size: 11.5px;
+  overflow-x: auto;
+}
+.pilot-cost-budget {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--pilot-line-soft);
+  border-radius: 12px;
+  background: var(--pilot-sheet);
+}
+.pilot-cost-budget-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--pilot-ink2);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.pilot-cost-budget-num {
+  font-variant-numeric: tabular-nums;
+  color: var(--pilot-ink);
+}
+.pilot-cost-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--pilot-ink) 9%, transparent);
+  overflow: hidden;
+}
+.pilot-cost-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--pilot-accent);
+  transition: width .3s ease;
+}
+.pilot-cost-bar span[data-over] {
+  background: var(--dsw-alias-state-error-primary, #c2410c);
+}
+.pilot-cost-models {
+  margin-top: 18px;
+}
+.pilot-cost-models h3 {
+  margin: 0 0 8px;
+  color: var(--pilot-ink2);
+  font-family: var(--pilot-font);
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: .02em;
+}
+.pilot-cost-models table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--pilot-font);
+  font-size: 12.5px;
+}
+.pilot-cost-models th {
+  padding: 5px 8px;
+  border-bottom: 1px solid var(--pilot-line-soft);
+  color: var(--pilot-ink3);
+  font-size: 11.5px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+}
+.pilot-cost-models th:not(:first-child),
+.pilot-cost-models td:not(:first-child) {
+  text-align: right;
+}
+.pilot-cost-models td {
+  padding: 6px 8px;
+  border-bottom: 1px solid color-mix(in oklab, var(--pilot-line-soft) 55%, transparent);
+  color: var(--pilot-ink2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pilot-cost-models tr:last-child td {
+  border-bottom: 0;
+}
+.pilot-cost-model {
+  max-width: 0;
+  width: 100%;
+  color: var(--pilot-ink);
+}
+.pilot-cost-provider {
+  margin-right: 6px;
+  padding: 0 5px;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--pilot-ink) 7%, transparent);
+  color: var(--pilot-ink3);
+  font-size: 11px;
+}
+.pilot-cost-num {
+  font-variant-numeric: tabular-nums;
+}
+.pilot-cost-note {
+  margin-top: 14px;
+  color: var(--pilot-ink3);
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+/* ── 宿主面板页头给原生窗口按钮让位 ─────────────────────────────
+   自动化任务（@deepseek-ai/dsh-client-ui-schedule）和插件
+   （@deepseek-ai/dsh-client-ui-plugin-manager）的页头把操作按钮放在最右侧，
+   正落在 Electron 原生窗口按钮（最小化/最大化/关闭）那条带上；页面缩放后
+   按钮的 CSS 宽度会变，原来靠固定内边距的页面就会被压住。
+   --pilot-window-controls-inset 由 client.tsx 在启动与窗口缩放时实测写入，
+   只有启用 Window Controls Overlay 的窗口才是非 0。 */
+:root .t-XoWW_pageHeading,
+:root .X_2TxG_pageHead {
+  padding-right: var(--pilot-window-controls-inset, 0px);
+}
+
