@@ -1,0 +1,474 @@
+/** Parent-side lifecycle, queue, timeout, and circuit breaker for local reranking. */
+
+import { fork, type ChildProcess } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+import {
+  LOCAL_RERANK_PROTOCOL_VERSION,
+  isProgressEvent,
+  isResponseEnvelope,
+  type LocalRerankOperation,
+  type LocalRerankProgressEvent,
+  type LocalRerankRequest,
+  type LocalRerankResponse,
+} from './rerank-protocol.js'
+
+export type LocalRerankFailureCode =
+  | 'model_not_downloaded'
+  | 'model_checking'
+  | 'model_unhealthy'
+  | 'unsupported_model'
+  | 'timeout'
+  | 'invalid_response'
+  | 'runtime_error'
+  | 'process_crash'
+  | 'circuit_open'
+  | 'busy'
+
+export class LocalRerankError extends Error {
+  constructor(
+    readonly code: LocalRerankFailureCode,
+    message: string,
+    readonly retryable: boolean,
+  ) {
+    super(message)
+    this.name = 'LocalRerankError'
+  }
+}
+
+export interface LocalRerankHealthReport {
+  healthy: true
+  latencyMs: number
+  scores: number[]
+  batchSize: number
+}
+
+interface QueueEntry {
+  id: number
+  operation: LocalRerankOperation
+  modelId: string
+  request: LocalRerankRequest
+  deadline: number
+  timer: ReturnType<typeof setTimeout>
+  cleanup(): void
+  resolve(value: unknown): void
+  reject(error: Error): void
+}
+
+interface CircuitState {
+  failures: number
+  openUntil: number
+  halfOpenProbe: boolean
+}
+
+const MAX_QUEUE_SIZE = 16
+const CIRCUIT_FAILURE_LIMIT = 3
+const CIRCUIT_COOLDOWN_MS = 5 * 60_000
+const circuits = new Map<string, CircuitState>()
+let rerankIdleTimeoutMs = 60_000
+let child: ChildProcess | null = null
+let active: QueueEntry | null = null
+let queue: QueueEntry[] = []
+let requestSequence = 0
+let idleTimer: ReturnType<typeof setTimeout> | null = null
+let intentionalExit = false
+let childGeneration = 0
+let progressListener: ((event: LocalRerankProgressEvent) => void) | undefined
+/** Notified when the child that was serving a model is gone. Callers use it to
+ *  drop per-child state that nothing else can clear — most importantly a latched
+ *  `validating`, which otherwise makes the readiness gate refuse every later
+ *  search while the model itself is fine (issue #18's self-lock). */
+let childGoneListener: ((modelId: string) => void) | undefined
+/** True once the current child has scored a request, i.e. its model is loaded.
+ *  A cold child must read ~280MB before it can score anything, and that load
+ *  shares one deadline with the inference it precedes (issue #18). */
+let childWarm = false
+
+/** Whether a rerank request will pay a model load before it can score. */
+export function localRerankChildIsWarm(): boolean {
+  return child !== null && childWarm
+}
+
+function notifyChildGone(modelId: string | undefined): void {
+  if (modelId === undefined) return
+  childGoneListener?.(modelId)
+}
+
+function abortError(signal: AbortSignal): Error {
+  return signal.reason instanceof Error
+    ? signal.reason
+    : new DOMException('The operation was aborted', 'AbortError')
+}
+
+function processPath(): string {
+  return fileURLToPath(new URL('./rerank-process.mjs', import.meta.url))
+}
+
+function clearIdleTimer(): void {
+  if (idleTimer !== null) clearTimeout(idleTimer)
+  idleTimer = null
+}
+
+function armIdleTimer(): void {
+  clearIdleTimer()
+  if (rerankIdleTimeoutMs <= 0 || active !== null || queue.length > 0 || child === null) return
+  idleTimer = setTimeout(() => {
+    idleTimer = null
+    terminateChild()
+  }, rerankIdleTimeoutMs)
+  idleTimer.unref?.()
+}
+
+function normalizeChildError(response: Extract<LocalRerankResponse, { ok: false }>): LocalRerankError {
+  const supported: LocalRerankFailureCode[] = ['invalid_response', 'runtime_error']
+  const code = supported.includes(response.error.code as LocalRerankFailureCode)
+    ? response.error.code as LocalRerankFailureCode
+    : 'runtime_error'
+  return new LocalRerankError(code, response.error.message, response.error.retryable)
+}
+
+function validateSuccess(entry: QueueEntry, response: Extract<LocalRerankResponse, { ok: true }>): unknown {
+  if (response.operation !== entry.operation) {
+    throw new LocalRerankError('invalid_response', `local rerank response operation mismatch: expected ${entry.operation}, received ${response.operation}`, false)
+  }
+  if (response.operation === 'rerank') {
+    if (!Array.isArray(response.scores) || response.scores.some(score => typeof score !== 'number' || !Number.isFinite(score))) {
+      throw new LocalRerankError('invalid_response', 'local rerank response contained invalid scores', false)
+    }
+    const expected = entry.request.operation === 'rerank' ? entry.request.texts.length : -1
+    if (response.scores.length !== expected) {
+      throw new LocalRerankError('invalid_response', `local rerank score count mismatch: expected ${expected}, received ${response.scores.length}`, false)
+    }
+    return response.scores
+  }
+  if (response.operation === 'self_test') {
+    const health = response.health
+    if (health?.healthy !== true || !Number.isFinite(health.latencyMs) || !Array.isArray(health.scores)
+      || health.scores.length !== 2 || health.scores.some(score => !Number.isFinite(score))) {
+      throw new LocalRerankError('invalid_response', 'local rerank self-test returned an invalid health report', false)
+    }
+    return health
+  }
+  return undefined
+}
+
+function finishActive(error: Error | undefined, value?: unknown): void {
+  const entry = active
+  if (entry === null) return
+  active = null
+  entry.cleanup()
+  if (error !== undefined) entry.reject(error)
+  else entry.resolve(value)
+  queueMicrotask(pump)
+}
+
+function onMessage(message: unknown, generation: number): void {
+  // Child IPC can deliver a final progress event after a timeout or idle
+  // teardown. Never let an obsolete child overwrite the status of its newer
+  // replacement (#18).
+  if (generation !== childGeneration) return
+  if (isProgressEvent(message)) {
+    progressListener?.(message)
+    return
+  }
+  const entry = active
+  if (entry === null) return
+  if (!isResponseEnvelope(message)) {
+    finishActive(new LocalRerankError('invalid_response', 'local rerank process returned an invalid response envelope', false))
+    terminateChild()
+    return
+  }
+  // A response may arrive after its caller timed out and the next request was
+  // dispatched. It belongs to the old id and must never poison the new one.
+  if (message.id !== entry.id) return
+  if (message.ok === false) {
+    finishActive(normalizeChildError(message))
+    return
+  }
+  try {
+    const value = validateSuccess(entry, message)
+    // A scored response proves the model is loaded in this child, i.e. the next
+    // request will not pay the load again.
+    if (entry.request.operation === 'rerank') childWarm = true
+    finishActive(undefined, value)
+  } catch (error) {
+    finishActive(error instanceof Error ? error : new Error(String(error)))
+    terminateChild()
+  }
+}
+
+function spawnChild(): ChildProcess {
+  if (child !== null) return child
+  intentionalExit = false
+  childWarm = false
+  const generation = ++childGeneration
+  const spawned = fork(processPath(), [], {
+    stdio: ['ignore', 'ignore', 'ignore', 'ipc'],
+    // Host-only eval/test/debug flags can make a file-based fork fail or make
+    // every rerank child fight for the same inspector port.
+    execArgv: process.execArgv.filter(argument =>
+      argument !== '--test'
+      && !argument.startsWith('--input-type')
+      && !argument.startsWith('--inspect')),
+  })
+  spawned.on('message', message => onMessage(message, generation))
+  // Every other spawn site (embed, ocr, pdf-parse) unrefs its handle. With an
+  // `ipc` stdio channel the parent otherwise holds a referenced handle, so a live
+  // rerank child keeps the host event loop alive — and `localWorkerIdleTimeoutMs: 0`
+  // ("keep models hot") is a documented, supported setting.
+  spawned.unref()
+  spawned.on('error', error => {
+    if (child !== spawned || intentionalExit) return
+    child = null
+    childWarm = false
+    notifyChildGone(active?.request.modelId)
+    finishActive(new LocalRerankError('process_crash', `local rerank process failed: ${error.message}`, true))
+  })
+  spawned.on('exit', (code, signal) => {
+    if (child !== spawned) return
+    child = null
+    childWarm = false
+    clearIdleTimer()
+    notifyChildGone(active?.request.modelId)
+    if (!intentionalExit && active !== null) {
+      finishActive(new LocalRerankError('process_crash', `local rerank process exited (${signal ?? code ?? 'unknown'})`, true))
+    }
+    intentionalExit = false
+  })
+  child = spawned
+  return spawned
+}
+
+function terminateChild(): void {
+  clearIdleTimer()
+  const running = child
+  const served = active?.request.modelId
+  child = null
+  childWarm = false
+  childGeneration += 1
+  if (running === null) {
+    notifyChildGone(served)
+    return
+  }
+  intentionalExit = true
+  running.removeAllListeners('message')
+  running.kill('SIGKILL')
+  notifyChildGone(served)
+}
+
+function pump(): void {
+  if (active !== null) return
+  while (queue.length > 0) {
+    const next = queue.shift()!
+    if (Date.now() >= next.deadline) {
+      next.cleanup()
+      next.reject(new LocalRerankError('timeout', 'local rerank request timed out while queued', true))
+      continue
+    }
+    active = next
+    clearIdleTimer()
+    try {
+      spawnChild().send(next.request)
+    } catch (error) {
+      finishActive(new LocalRerankError('process_crash', error instanceof Error ? error.message : String(error), true))
+      terminateChild()
+    }
+    return
+  }
+  armIdleTimer()
+}
+
+function callProcess(
+  operation: LocalRerankOperation,
+  modelId: string,
+  cacheDir: string,
+  hfEndpoint: string | undefined,
+  timeoutMs: number,
+  input?: { query: string; texts: string[] },
+  signal?: AbortSignal,
+): Promise<unknown> {
+  if (signal?.aborted === true) return Promise.reject(abortError(signal))
+  if ((active === null ? 0 : 1) + queue.length >= MAX_QUEUE_SIZE) {
+    return Promise.reject(new LocalRerankError('busy', 'local rerank queue is full', true))
+  }
+  const id = ++requestSequence
+  const base = { protocolVersion: LOCAL_RERANK_PROTOCOL_VERSION, id, operation, modelId, cacheDir, hfEndpoint }
+  const request = operation === 'rerank'
+    ? { ...base, operation, query: input?.query ?? '', texts: input?.texts ?? [] } as LocalRerankRequest
+    : { ...base, operation } as LocalRerankRequest
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + timeoutMs
+    let settled = false
+    let entry = {} as QueueEntry
+    const cleanup = (): void => {
+      clearTimeout(entry.timer)
+      signal?.removeEventListener('abort', onAbort)
+    }
+    const settleResolve = (value: unknown): void => {
+      if (settled) return
+      settled = true
+      cleanup()
+      resolve(value)
+    }
+    const settleReject = (error: Error): void => {
+      if (settled) return
+      settled = true
+      cleanup()
+      reject(error)
+    }
+    const onAbort = (): void => {
+      const error = abortError(signal!)
+      if (active === entry) {
+        active = null
+        entry.reject(error)
+        // Active ONNX inference cannot be interrupted safely in-process. Kill
+        // only the isolated rerank child; embedding's worker is independent.
+        terminateChild()
+        queueMicrotask(pump)
+        return
+      }
+      const index = queue.indexOf(entry)
+      if (index >= 0) queue.splice(index, 1)
+      entry.reject(error)
+    }
+    const timer = setTimeout(() => {
+      if (active === entry) {
+        active = null
+        entry.reject(new LocalRerankError('timeout', 'local rerank inference timed out', true))
+        terminateChild()
+        queueMicrotask(pump)
+        return
+      }
+      const index = queue.indexOf(entry)
+      if (index >= 0) queue.splice(index, 1)
+      entry.reject(new LocalRerankError('timeout', 'local rerank request timed out while queued', true))
+    }, timeoutMs)
+    timer.unref?.()
+    entry = { id, operation, modelId, request, deadline, timer, cleanup, resolve: settleResolve, reject: settleReject }
+    signal?.addEventListener('abort', onAbort, { once: true })
+    if (signal?.aborted === true) {
+      onAbort()
+      return
+    }
+    queue.push(entry)
+    pump()
+  })
+}
+
+function circuitFor(modelId: string): CircuitState {
+  const existing = circuits.get(modelId)
+  if (existing !== undefined) return existing
+  const created = { failures: 0, openUntil: 0, halfOpenProbe: false }
+  circuits.set(modelId, created)
+  return created
+}
+
+function enterCircuit(modelId: string): void {
+  const state = circuitFor(modelId)
+  const now = Date.now()
+  if (state.openUntil > now) throw new LocalRerankError('circuit_open', 'local rerank is temporarily disabled after repeated failures', true)
+  if (state.openUntil > 0) {
+    if (state.halfOpenProbe) throw new LocalRerankError('circuit_open', 'local rerank recovery probe is already running', true)
+    state.halfOpenProbe = true
+  }
+}
+
+function circuitSuccess(modelId: string): void {
+  circuits.set(modelId, { failures: 0, openUntil: 0, halfOpenProbe: false })
+}
+
+function circuitFailure(modelId: string, error: unknown): void {
+  const state = circuitFor(modelId)
+  state.halfOpenProbe = false
+  if (!(error instanceof LocalRerankError) || !['timeout', 'process_crash', 'runtime_error', 'invalid_response'].includes(error.code)) return
+  state.failures += 1
+  if (state.failures >= CIRCUIT_FAILURE_LIMIT) state.openUntil = Date.now() + CIRCUIT_COOLDOWN_MS
+}
+
+export function setLocalRerankIdleTimeoutMs(ms: number): void {
+  rerankIdleTimeoutMs = Number.isFinite(ms) && ms >= 0 ? Math.trunc(ms) : 60_000
+  armIdleTimer()
+}
+
+export function setLocalRerankProgressListener(listener: ((event: LocalRerankProgressEvent) => void) | undefined): void {
+  progressListener = listener
+}
+
+/** Observe child teardown (idle release, timeout, crash, abort, dispose) so the
+ *  caller can drop the state that only that child could have cleared. */
+export function setLocalRerankChildGoneListener(listener: ((modelId: string) => void) | undefined): void {
+  childGoneListener = listener
+}
+
+export async function rerankInLocalProcess(
+  modelId: string,
+  cacheDir: string,
+  hfEndpoint: string | undefined,
+  query: string,
+  texts: readonly string[],
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<number[]> {
+  enterCircuit(modelId)
+  try {
+    const scores = await callProcess('rerank', modelId, cacheDir, hfEndpoint, timeoutMs, { query, texts: [...texts] }, signal) as number[]
+    circuitSuccess(modelId)
+    return scores
+  } catch (error) {
+    circuitFailure(modelId, error)
+    throw error
+  }
+}
+
+export async function loadLocalReranker(modelId: string, cacheDir: string, hfEndpoint?: string): Promise<void> {
+  await callProcess('load', modelId, cacheDir, hfEndpoint, 30 * 60_000)
+}
+
+export async function selfTestLocalReranker(modelId: string, cacheDir: string, hfEndpoint?: string): Promise<LocalRerankHealthReport> {
+  const health = await callProcess('self_test', modelId, cacheDir, hfEndpoint, 5 * 60_000) as LocalRerankHealthReport
+  circuitSuccess(modelId)
+  return health
+}
+
+export async function releaseLocalReranker(modelId: string, cacheDir: string, hfEndpoint?: string): Promise<void> {
+  if (child === null) return
+  await callProcess('dispose', modelId, cacheDir, hfEndpoint, 3000).catch(() => {})
+}
+
+export async function cancelLocalReranker(modelId: string): Promise<void> {
+  const cancelled = new LocalRerankError('runtime_error', 'local rerank operation cancelled', true)
+  queue = queue.filter(entry => {
+    if (entry.modelId !== modelId) return true
+    clearTimeout(entry.timer)
+    entry.reject(cancelled)
+    return false
+  })
+  if (active?.modelId === modelId) {
+    const entry = active
+    active = null
+    clearTimeout(entry.timer)
+    entry.reject(cancelled)
+    terminateChild()
+    queueMicrotask(pump)
+  }
+}
+
+export async function disposeLocalRerankProcess(): Promise<void> {
+  clearIdleTimer()
+  const error = new LocalRerankError('process_crash', 'local rerank process disposed', true)
+  if (active !== null) {
+    clearTimeout(active.timer)
+    active.reject(error)
+    active = null
+  }
+  for (const entry of queue) {
+    clearTimeout(entry.timer)
+    entry.reject(error)
+  }
+  queue = []
+  terminateChild()
+}
+
+/** Test-only visibility without exposing process handles. */
+export function localRerankRuntimeSnapshot(): { active: boolean; queued: number; process: boolean } {
+  return { active: active !== null, queued: queue.length, process: child !== null }
+}

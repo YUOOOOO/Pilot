@@ -1,0 +1,1590 @@
+import { describe, expect, it, vi } from 'vitest'
+import type { Domain, KvTable } from '@deepseek-ai/dsh-storage-domain'
+import { Context } from '@deepseek-ai/cordis'
+import { existsSync } from 'node:fs'
+import { mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises'
+import { createServer } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { knowledgeDomainSpec } from '../src/knowledge/domain.js'
+import { ChunkDatabase, hashEmbeddingText, migrateLegacyChunkFile } from '../src/knowledge/chunkdb.js'
+import { openStore, StorageUnavailableError } from '../src/knowledge/store.js'
+import type { StorageDomainFacility, Store } from '../src/knowledge/store.js'
+import { KnowledgeService } from '../src/knowledge/index.js'
+import { knowledgeRoute } from '../src/knowledge/http.js'
+import type { Config } from '../src/knowledge/config.js'
+import type { KnowledgeChunk, KnowledgeDocument, SearchResult } from '../src/knowledge/types.js'
+
+const TEST_CONFIG: Config = {
+  embeddingProvider: 'none',
+  embeddingBaseUrl: '',
+  embeddingModel: '',
+  embeddingApiKey: '',
+  rerankModel: '',
+  rerankBaseUrl: '',
+  rerankApiKey: '',
+  localRerankTimeoutMs: 60000,
+  smartChunk: true,
+  chunkSeparator: '\n\n',
+  chunkSize: 800,
+  chunkOverlap: 100,
+  topK: 6,
+  searchMode: 'auto',
+  similarityThreshold: 0,
+  mmrDiversity: 0,
+  rrfVectorWeight: 1,
+  embeddingBatchSize: 32,
+  siblingChunks: 1,
+  localModelCacheDir: '',
+  hfEndpoint: '',
+  chunkStorePath: '',
+  documentProcessorProvider: 'builtin',
+  mineruApiKey: '',
+  mineruApiHost: '',
+  semanticChunk: false,
+  semanticChunkThreshold: 0.75,
+  chunkTokenLimit: 0,
+  conflictStrategy: 'rename',
+  urlRefreshHours: 0,
+  imageCaptionProvider: 'off',
+  imageCaptionModel: '',
+  imageCaptionBaseUrl: '',
+  imageCaptionApiKey: '',
+  resumeInterruptedOnStartup: true,
+  autoRetrieve: true,
+  autoRetrieveWeight: 3,
+  localWorkerIdleTimeoutMs: 60000,
+}
+
+/** Minimal in-memory KvTable matching the storage-domain runtime contract. */
+class FakeTable<K extends string, V> implements KvTable<K, V> {
+  readonly map = new Map<K, V>()
+
+  get(key: K): V | undefined {
+    return this.map.get(key)
+  }
+
+  entries(): IterableIterator<[K, V]> {
+    return this.map.entries()
+  }
+
+  keys(): IterableIterator<K> {
+    return this.map.keys()
+  }
+
+  get size(): number {
+    return this.map.size
+  }
+
+  async put(key: K, value: V): Promise<void> {
+    this.map.set(key, value)
+  }
+
+  async delete(key: K): Promise<boolean> {
+    return this.map.delete(key)
+  }
+
+  async update(key: K, fn: (current: V) => V): Promise<V> {
+    const current = this.map.get(key)
+    if (current === undefined) throw new Error(`missing key ${key}`)
+    const next = fn(current)
+    this.map.set(key, next)
+    return next
+  }
+}
+
+function fakeDomain(): Domain<typeof knowledgeDomainSpec> {
+  const tables = {
+    bases: new FakeTable<string, unknown>(),
+    documents: new FakeTable<string, unknown>(),
+  }
+  let globalValue: unknown = { overrides: {}, groups: [], enabled: true, enabledBaseIds: [] }
+  return {
+    name: 'knowledge',
+    global: {
+      get: () => globalValue,
+      set: async (value: unknown) => { globalValue = value },
+    },
+    table: (name: string) => tables[name as keyof typeof tables] as unknown,
+    close: async () => {},
+  } as unknown as Domain<typeof knowledgeDomainSpec>
+}
+
+function chunk(id: string, docId: string, baseId: string, index: number, text: string): KnowledgeChunk {
+  return { id, docId, baseId, index, text }
+}
+
+async function tempDir(): Promise<string> {
+  return mkdtemp(join(tmpdir(), 'dsh-kb-chunkdb-'))
+}
+
+describe('ChunkDatabase (per-chunk SQL layout)', () => {
+  it('stores one row per chunk, lists by doc/base, and deletes in one op', async () => {
+    const dir = await tempDir()
+    try {
+      const path = join(dir, 'chunks.sqlite')
+      const db = new ChunkDatabase(path)
+      db.putChunks([chunk('c1', 'd1', 'b1', 0, 'alpha'), chunk('c2', 'd1', 'b1', 1, 'beta'), chunk('c3', 'd2', 'b1', 0, 'gamma')])
+      expect(db.size).toBe(3)
+      expect(db.listChunksByDoc('d1').map(c => c.id).sort()).toEqual(['c1', 'c2'])
+      expect(db.listChunks('b1')).toHaveLength(3)
+      await db.deleteChunks('d1')
+      expect(db.listChunksByDoc('d1')).toHaveLength(0)
+      expect(db.listChunks('b1')).toHaveLength(1)
+      db.close()
+
+      const reopened = new ChunkDatabase(path)
+      expect(reopened.listChunks('b1')).toHaveLength(1)
+      reopened.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('deletes every chunk of a base in one sweep', async () => {
+    const dir = await tempDir()
+    try {
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      db.putChunks([chunk('c1', 'd1', 'b1', 0, 'a'), chunk('c2', 'd2', 'b1', 0, 'b')])
+      db.putChunks([chunk('c3', 'd3', 'b2', 0, 'c')])
+      await db.deleteChunksByBase('b1')
+      expect(db.listChunks('b1')).toHaveLength(0)
+      expect(db.listChunks('b2')).toHaveLength(1)
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('runs the FTS5 lexical lane over CJK and latin text', async () => {
+    const dir = await tempDir()
+    try {
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      db.putChunks([
+        chunk('c1', 'd1', 'b1', 0, '公司的报销流程是提交发票后审批'),
+        chunk('c2', 'd1', 'b1', 1, '年假申请需要提前三天'),
+        chunk('c3', 'd2', 'b1', 0, 'the quick brown fox jumps over the lazy dog'),
+        chunk('c4', 'd2', 'b1', 1, 'unrelated filler content here'),
+      ])
+      const zh = await db.lexical('报销流程', ['b1'], 10)
+      expect(zh.total).toBe(4)
+      expect(zh.hits[0].id).toBe('c1')
+      const en = await db.lexical('brown fox', ['b1'], 10)
+      expect(en.hits[0].id).toBe('c3')
+      // Two-character CJK term → trigram has nothing to index → LIKE fallback.
+      const short = await db.lexical('年假', ['b1'], 10)
+      expect(short.hits[0].id).toBe('c2')
+      // Scope filtering: another base is invisible.
+      const other = await db.lexical('报销流程', ['b9'], 10)
+      expect(other.total).toBe(0)
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('ranks the vector lane by cosine similarity', async () => {
+    const dir = await tempDir()
+    try {
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      const base = (label: string, vector: number[]): KnowledgeChunk => ({
+        ...chunk(`c-${label}`, `d-${label}`, 'b1', 0, `text ${label}`),
+        embedding: vector,
+      })
+      const near = base('near', [1, 0, 0])
+      const far = base('far', [0, 1, 0])
+      const mid = base('mid', [0.8, 0.6, 0])
+      db.putChunks([near, far, mid])
+      const result = await db.vector([1, 0.1, 0], ['b1'], 10)
+      expect(result.total).toBe(3)
+      expect(result.hits.map(h => h.id)).toEqual(['c-near', 'c-mid', 'c-far'])
+      expect(result.hits[0].score).toBeGreaterThan(result.hits[1].score)
+      // Embeddings round-trip through the BLOB codec.
+      expect(result.hits[0].embedding).toEqual([1, 0, 0])
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('migrates the previous bundle layout into per-chunk rows on open', async () => {
+    const dir = await tempDir()
+    try {
+      const path = join(dir, 'chunks.sqlite')
+      // Create the OLD layout by hand.
+      const { DatabaseSync } = await import('node:sqlite')
+      const seed = new DatabaseSync(path)
+      seed.exec('CREATE TABLE chunk_bundles (doc_id TEXT PRIMARY KEY, base_id TEXT NOT NULL, chunks_json TEXT NOT NULL)')
+      seed.prepare('INSERT INTO chunk_bundles (doc_id, base_id, chunks_json) VALUES (?, ?, ?)').run(
+        'd1', 'b1', JSON.stringify([{ id: 'c1', docId: 'd1', baseId: 'b1', index: 0, text: 'alpha' }, { id: 'c2', docId: 'd1', baseId: 'b1', index: 1, text: 'beta' }]),
+      )
+      seed.close()
+
+      const db = new ChunkDatabase(path)
+      expect(db.size).toBe(2)
+      expect(db.listChunksByDoc('d1').map(c => c.id).sort()).toEqual(['c1', 'c2'])
+      // Legacy table is gone.
+      const { DatabaseSync: Sync } = await import('node:sqlite')
+      const check = new Sync(path)
+      const leftover = check.prepare("SELECT name FROM sqlite_master WHERE name = 'chunk_bundles'").get()
+      expect(leftover).toBeUndefined()
+      check.close()
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('migrates legacy per-chunk rows and bundles from a unit file', async () => {
+    const dir = await tempDir()
+    try {
+      const legacy = {
+        unit: { name: 'knowledge', version: 0 },
+        global: null,
+        tables: {
+          bases: {},
+          documents: {},
+          chunks: {
+            'c1': { id: 'c1', docId: 'd1', baseId: 'b1', index: 0, text: 'a' },
+            'c2': { id: 'c2', docId: 'd1', baseId: 'b1', index: 1, text: 'b' },
+            'd2': [{ id: 'c3', docId: 'd2', baseId: 'b1', index: 0, text: 'c' }],
+          },
+        },
+      }
+      const jsonPath = join(dir, 'knowledge.json')
+      await writeFile(jsonPath, JSON.stringify(legacy))
+
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      const migrated = await migrateLegacyChunkFile(jsonPath, db, () => {})
+      expect(migrated).toBe(2)
+      expect(db.listChunksByDoc('d1').map(c => c.id).sort()).toEqual(['c1', 'c2'])
+      expect(db.listChunksByDoc('d2').map(c => c.id)).toEqual(['c3'])
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('resumes the unit-file migration per document instead of skipping it wholesale', async () => {
+    const dir = await tempDir()
+    try {
+      const legacy = {
+        unit: { name: 'knowledge', version: 0 },
+        global: null,
+        tables: {
+          bases: {},
+          documents: {},
+          chunks: {
+            c1: { id: 'c1', docId: 'd1', baseId: 'b1', index: 0, text: 'never migrated' },
+            c2: { id: 'c2', docId: 'd9', baseId: 'b9', index: 0, text: 'already stored' },
+          },
+        },
+      }
+      const jsonPath = join(dir, 'knowledge.json')
+      await writeFile(jsonPath, JSON.stringify(legacy))
+
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      // d9 was reached by a previous run; d1 was never reached because that run
+      // stopped early. A whole-store guard would strand d1 forever.
+      db.putChunks([chunk('x1', 'd9', 'b9', 0, 'x')])
+      const migrated = await migrateLegacyChunkFile(jsonPath, db, () => {})
+      expect(migrated).toBe(1)
+      expect(db.listChunksByDoc('d1')).toHaveLength(1)
+      // The document already in the store keeps its stored version.
+      expect(db.listChunksByDoc('d9').map(entry => entry.id)).toEqual(['x1'])
+
+      // Idempotent: a later run has nothing left to migrate.
+      expect(await migrateLegacyChunkFile(jsonPath, db, () => {})).toBe(0)
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('reuses stored vectors by embedding-text hash + model, across documents', async () => {
+    const dir = await tempDir()
+    try {
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      // All embedded chunks share context 'doc d1' — the embedding input is
+      // context + text, so reuse only holds between chunks whose full search
+      // text (hash key) is identical.
+      const embedded = (id: string, docId: string, baseId: string, index: number, text: string, model: string, vector: number[]): KnowledgeChunk => ({
+        ...chunk(id, docId, baseId, index, text),
+        context: 'doc d1',
+        embedding: vector,
+        embeddingModel: model,
+      })
+      db.putChunks([
+        embedded('c1', 'd1', 'b1', 0, 'alpha text', 'openai:m1', [1, 0, 0]),
+        embedded('c2', 'd1', 'b1', 1, 'beta text', 'openai:m1', [0, 1, 0]),
+        // Same chunk text under a different model must NOT be reusable.
+        embedded('c3', 'd2', 'b2', 0, 'alpha text', 'openai:m2', [0.5, 0.5, 0]),
+        // A lexical-only chunk (no vector) must never match.
+        chunk('c4', 'd3', 'b1', 0, 'alpha text'),
+      ])
+
+      // Another document embedding the same text under the same model reuses.
+      const alphaHash = hashEmbeddingText('doc d1\nalpha text')
+      const betaHash = hashEmbeddingText('doc d1\nbeta text')
+      const missingHash = hashEmbeddingText('doc d1\nnever seen')
+      const reused = db.listEmbeddingVectorsByHashes([alphaHash, betaHash, missingHash], 'openai:m1')
+      expect(reused.get(alphaHash)).toEqual([1, 0, 0])
+      expect(reused.get(betaHash)).toEqual([0, 1, 0])
+      expect(reused.has(missingHash)).toBe(false)
+      // Another model sees only its own vectors.
+      const m2 = db.listEmbeddingVectorsByHashes([alphaHash], 'openai:m2')
+      expect(m2.get(alphaHash)).toEqual([0.5, 0.5, 0])
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('backfills the embedding_text_hash column on a store created by an older version', async () => {
+    const dir = await tempDir()
+    try {
+      const path = join(dir, 'chunks.sqlite')
+      // Create the OLD schema by hand (no embedding_text_hash column) with a stored vector.
+      const { DatabaseSync } = await import('node:sqlite')
+      const seed = new DatabaseSync(path)
+      seed.exec(`
+        CREATE TABLE chunk (
+          chunk_id TEXT PRIMARY KEY, doc_id TEXT NOT NULL, base_id TEXT NOT NULL, idx INTEGER NOT NULL,
+          text TEXT NOT NULL, search_text TEXT NOT NULL, heading TEXT, context TEXT,
+          embedding BLOB, embedding_model TEXT
+        )
+      `)
+      const blob = Buffer.from(new Float32Array([1, 0, 0]).buffer)
+      seed.prepare('INSERT INTO chunk (chunk_id, doc_id, base_id, idx, text, search_text, context, embedding, embedding_model) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+        .run('c1', 'd1', 'b1', 0, 'alpha text', 'doc d1\nalpha text', 'doc d1', blob, 'openai:m1')
+      seed.prepare('INSERT INTO chunk (chunk_id, doc_id, base_id, idx, text, search_text) VALUES (?, ?, ?, ?, ?, ?)')
+        .run('c2', 'd1', 'b1', 1, 'lexical only', 'doc d1\nlexical only')
+      seed.close()
+
+      const db = new ChunkDatabase(path)
+      const hash = hashEmbeddingText('doc d1\nalpha text')
+      const reused = db.listEmbeddingVectorsByHashes([hash], 'openai:m1')
+      expect(reused.get(hash)).toEqual([1, 0, 0])
+      // The lexical-only row still has no vector and no hash.
+      const { DatabaseSync: Sync } = await import('node:sqlite')
+      const check = new Sync(path)
+      const row = check.prepare('SELECT embedding_text_hash FROM chunk WHERE chunk_id = ?').get('c2') as { embedding_text_hash: string | null }
+      expect(row.embedding_text_hash).toBeNull()
+      check.close()
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('re-embeds after a delete removes the reuse source', async () => {
+    const dir = await tempDir()
+    try {
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      const embedded = (id: string, docId: string, text: string, vector: number[]): KnowledgeChunk => ({
+        ...chunk(id, docId, 'b1', 0, text),
+        context: 'doc',
+        embedding: vector,
+        embeddingModel: 'openai:m1',
+      })
+      db.putChunks([embedded('c1', 'd1', 'alpha text', [1, 0, 0])])
+      const hash = hashEmbeddingText('doc\nalpha text')
+      expect(db.listEmbeddingVectorsByHashes([hash], 'openai:m1').has(hash)).toBe(true)
+      await db.deleteChunksByBase('b1')
+      expect(db.listEmbeddingVectorsByHashes([hash], 'openai:m1').has(hash)).toBe(false)
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('persists embedded batches incrementally without clearing the document', async () => {
+    const dir = await tempDir()
+    try {
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      const embedded = (id: string, docId: string, index: number, text: string, vector: number[]): KnowledgeChunk => ({
+        ...chunk(id, docId, 'b1', index, text),
+        context: 'doc',
+        embedding: vector,
+        embeddingModel: 'openai:m1',
+      })
+      // Two batches land over time (as if embedding ran in two chunks of work).
+      db.putChunkBatch([embedded('c1', 'd1', 0, 'alpha text', [1, 0, 0])])
+      db.putChunkBatch([embedded('c2', 'd1', 1, 'beta text', [0, 1, 0])])
+      // Both batches survive; no DELETE-then-INSERT wipe happened.
+      expect(db.listChunksByDoc('d1').map(c => c.id).sort()).toEqual(['c1', 'c2'])
+      // A later full replace still works after incremental batches.
+      db.putChunks([embedded('c9', 'd1', 0, 'gamma text', [0, 0, 1])])
+      expect(db.listChunksByDoc('d1').map(c => c.id)).toEqual(['c9'])
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('fetches a bounded index range around a hit (sibling context)', async () => {
+    const dir = await tempDir()
+    try {
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      db.putChunks([
+        chunk('c0', 'd1', 'b1', 0, 'zero'),
+        chunk('c1', 'd1', 'b1', 1, 'one'),
+        chunk('c2', 'd1', 'b1', 2, 'two'),
+        chunk('c3', 'd1', 'b1', 3, 'three'),
+        chunk('c4', 'd2', 'b1', 0, 'other doc'),
+      ])
+      // Radius 1 around index 2 → [1..3], reading order, other docs excluded.
+      const around = db.listChunksByIndexRange('d1', 1, 3)
+      expect(around.map(c => c.id)).toEqual(['c1', 'c2', 'c3'])
+      // Range clamps to the document's edges (no neighbours at index 0 radius 0).
+      expect(db.listChunksByIndexRange('d1', 0, 0).map(c => c.id)).toEqual(['c0'])
+      expect(db.listChunksByIndexRange('d1', 0, 1).map(c => c.id)).toEqual(['c0', 'c1'])
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('narrows both lanes to a document subset (metadata filter)', async () => {
+    const dir = await tempDir()
+    try {
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      const embedded = (id: string, docId: string, text: string, vector: number[]): KnowledgeChunk => ({
+        ...chunk(id, docId, 'b1', 0, text),
+        embedding: vector,
+        embeddingModel: 'm1',
+      })
+      db.putChunks([
+        embedded('c1', 'd1', 'alpha queuing theory text', [1, 0, 0]),
+        embedded('c2', 'd2', 'beta queuing theory text', [0.9, 0.1, 0]),
+        embedded('c3', 'd3', 'gamma queuing theory text', [0.8, 0.2, 0]),
+      ])
+      // Lexical lane with docIds: only d2's chunk is visible.
+      const lex = await db.lexical('queuing', ['b1'], 10, { docIds: ['d2'] })
+      expect(lex.total).toBe(1)
+      expect(lex.hits[0].id).toBe('c2')
+      // Vector lane with docIds: only d1 + d3 are scanned.
+      const vec = await db.vector([1, 0, 0], ['b1'], 10, { docIds: ['d1', 'd3'] })
+      expect(vec.hits.map(h => h.id)).toEqual(['c1', 'c3'])
+      // No docIds = unrestricted (existing behavior).
+      const all = await db.lexical('queuing', ['b1'], 10)
+      expect(all.total).toBe(3)
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('reports interrupted documents for resume instead of dropping them', async () => {
+    const dir = await tempDir()
+    try {
+      // Seed a crashed state: an incomplete document with rawText + one landed
+      // chunk batch, an incomplete document with no chunks yet, and a pure
+      // placeholder with neither text nor chunks.
+      {
+        const domain = fakeDomain()
+        const bases = domain.table('bases') as unknown as FakeTable<string, unknown>
+        const documents = domain.table('documents') as unknown as FakeTable<string, unknown>
+        await bases.put('b1', { id: 'b1', name: 'b1', description: '', createdAt: 1, updatedAt: 1 })
+        await documents.put('partial', { id: 'partial', baseId: 'b1', title: 'mid-embed', sourceType: 'file', rawText: 'full source text', charCount: 15, chunkCount: 0, incomplete: true, createdAt: 100, updatedAt: 100 })
+        await documents.put('rawonly', { id: 'rawonly', baseId: 'b1', title: 'text-ok', sourceType: 'file', rawText: 'text but no chunks yet', charCount: 23, chunkCount: 0, incomplete: true, createdAt: 200, updatedAt: 200 })
+        await documents.put('pure', { id: 'pure', baseId: 'b1', title: 'placeholder', sourceType: 'file', charCount: 0, chunkCount: 0, createdAt: 300, updatedAt: 300 })
+        const store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, {
+          chunkStorePath: join(dir, 'chunks.sqlite'),
+          legacyJsonPath: join(dir, 'missing.json'),
+        })
+        await store.putChunkBatch([{ ...chunk('c1', 'partial', 'b1', 0, 'first batch'), context: 'partial', embedding: [1, 0, 0], embeddingModel: 'openai:m1' }])
+        await store.close()
+      }
+      // Reopen at a later "process start": incomplete documents are reported
+      // for resume (kept, not dropped); the pure placeholder was already
+      // removed by openStore's own recovery pass (so a second pass reports
+      // zero removed and the same resume list).
+      const domain = fakeDomain()
+      const bases = domain.table('bases') as unknown as FakeTable<string, unknown>
+      const documents = domain.table('documents') as unknown as FakeTable<string, unknown>
+      await bases.put('b1', { id: 'b1', name: 'b1', description: '', createdAt: 1, updatedAt: 1 })
+      await documents.put('partial', { id: 'partial', baseId: 'b1', title: 'mid-embed', sourceType: 'file', rawText: 'full source text', charCount: 15, chunkCount: 0, incomplete: true, createdAt: 100, updatedAt: 100 })
+      await documents.put('rawonly', { id: 'rawonly', baseId: 'b1', title: 'text-ok', sourceType: 'file', rawText: 'text but no chunks yet', charCount: 23, chunkCount: 0, incomplete: true, createdAt: 200, updatedAt: 200 })
+      await documents.put('pure', { id: 'pure', baseId: 'b1', title: 'placeholder', sourceType: 'file', charCount: 0, chunkCount: 0, createdAt: 300, updatedAt: 300 })
+      const store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, {
+        chunkStorePath: join(dir, 'chunks.sqlite'),
+        legacyJsonPath: join(dir, 'missing.json'),
+      })
+      // openStore's recovery pass already dropped the pure placeholder.
+      expect(store.getDocument('pure')).toBeUndefined()
+      const recovery = await store.recoverInterruptedImports(Date.now())
+      expect(recovery.resume.sort()).toEqual(['partial', 'rawonly'])
+      expect(recovery.removed).toBe(0)
+      expect(store.getDocument('partial')).toBeDefined()
+      await store.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps explicitly failed parser imports out of automatic recovery', async () => {
+    const store = await openStore(undefined)
+    const failed: KnowledgeDocument = {
+      id: 'failed', baseId: 'b1', title: 'scan.pdf', sourceType: 'file',
+      rawFilePath: 'b1/scan.pdf', errorCode: 'parse_failed',
+      charCount: 0, chunkCount: 0, createdAt: 1, updatedAt: 1,
+    }
+    await store.putDocument(failed)
+    const { errorCode: _failedCode, ...resumable } = failed
+    await store.putDocument({ ...resumable, id: 'interrupted', incomplete: true })
+
+    const recovery = await store.recoverInterruptedImports(Date.now())
+    expect(recovery.resume).toEqual(['interrupted'])
+    expect(store.getDocument('failed')).toBeDefined()
+    await store.close()
+  })
+})
+
+describe('DomainStore wiring', () => {
+  it('backs chunks with the SQLite store and business state with the domain', async () => {
+    const dir = await tempDir()
+    try {
+      const store = await openStore({ open: async () => fakeDomain() } as unknown as StorageDomainFacility, {
+        chunkStorePath: join(dir, 'chunks.sqlite'),
+        legacyJsonPath: join(dir, 'missing.json'),
+      })
+      await store.putChunks([chunk('c1', 'd1', 'b1', 0, 'a'), chunk('c2', 'd1', 'b1', 1, 'b')])
+      expect(store.listChunksByDoc('d1')).toHaveLength(2)
+      // Pagination is pushed into SQL.
+      expect(store.listChunksByDoc('d1', 1, 1).map(c => c.id)).toEqual(['c2'])
+      expect(store.chunkCountsByDoc(['b1']).get('d1')).toBe(2)
+      const status = store.docChunkStatus('b1')
+      expect(status.withChunks.has('d1')).toBe(true)
+      expect(status.missingEmbedding.has('d1')).toBe(true)
+      await store.deleteChunks('d1')
+      expect(store.listChunksByDoc('d1')).toHaveLength(0)
+      await store.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('reconciles stale document chunkCount metadata against the chunk store', async () => {
+    const dir = await tempDir()
+    try {
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      db.putChunks([chunk('c1', 'd1', 'b1', 0, 'a'), chunk('c2', 'd1', 'b1', 1, 'b'), chunk('c3', 'd2', 'b1', 0, 'c')])
+      db.close()
+      const domain = fakeDomain()
+      const bases = domain.table('bases') as unknown as FakeTable<string, unknown>
+      const documents = domain.table('documents') as unknown as FakeTable<string, unknown>
+      await bases.put('b1', { id: 'b1', name: 'b1', description: '', createdAt: 1, updatedAt: 1 })
+      await documents.put('d1', { id: 'd1', baseId: 'b1', title: 'stale', sourceType: 'text', charCount: 10, chunkCount: 99, createdAt: 1 })
+      await documents.put('d2', { id: 'd2', baseId: 'b1', title: 'fine', sourceType: 'text', charCount: 10, chunkCount: 1, createdAt: 1 })
+
+      const store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, {
+        chunkStorePath: join(dir, 'chunks.sqlite'),
+        legacyJsonPath: join(dir, 'missing.json'),
+      })
+      expect(store.getDocument('d1')?.chunkCount).toBe(2)
+      expect(store.getDocument('d2')?.chunkCount).toBe(1)
+      await store.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('cleans up documents an interrupted import left behind', async () => {
+    const dir = await tempDir()
+    try {
+      // First run: seed a crashed state — a placeholder (no chunks) and a
+      // half-finished doc (chunkCount > 0 but no chunks) from a previous run.
+      {
+        const domain = fakeDomain()
+        const bases = domain.table('bases') as unknown as FakeTable<string, unknown>
+        const documents = domain.table('documents') as unknown as FakeTable<string, unknown>
+        await bases.put('b1', { id: 'b1', name: 'b1', description: '', createdAt: 1, updatedAt: 1 })
+        await documents.put('ghost', { id: 'ghost', baseId: 'b1', title: 'crash-placeholder', sourceType: 'file', fileName: 'a.pdf', charCount: 0, chunkCount: 0, createdAt: 100, updatedAt: 100 })
+        await documents.put('half', { id: 'half', baseId: 'b1', title: 'crash-half', sourceType: 'file', charCount: 10, chunkCount: 5, createdAt: 200, updatedAt: 200 })
+        await documents.put('fine', { id: 'fine', baseId: 'b1', title: 'complete', sourceType: 'file', charCount: 10, chunkCount: 1, createdAt: 300, updatedAt: 300 })
+        const store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, {
+          chunkStorePath: join(dir, 'chunks.sqlite'),
+          legacyJsonPath: join(dir, 'missing.json'),
+        })
+        // 'half' claims chunks but has none — give it a chunk so it is real.
+        await store.putChunks([chunk('c1', 'fine', 'b1', 0, 'x')])
+        await store.close()
+      }
+      // Reopen at a later "process start": ghosts with no chunks predating the
+      // start are removed; the completed doc survives.
+      const domain = fakeDomain()
+      const bases = domain.table('bases') as unknown as FakeTable<string, unknown>
+      const documents = domain.table('documents') as unknown as FakeTable<string, unknown>
+      await bases.put('b1', { id: 'b1', name: 'b1', description: '', createdAt: 1, updatedAt: 1 })
+      await documents.put('ghost', { id: 'ghost', baseId: 'b1', title: 'crash-placeholder', sourceType: 'file', fileName: 'a.pdf', charCount: 0, chunkCount: 0, createdAt: 100, updatedAt: 100 })
+      await documents.put('half', { id: 'half', baseId: 'b1', title: 'crash-half', sourceType: 'file', charCount: 10, chunkCount: 5, createdAt: 200, updatedAt: 200 })
+      await documents.put('fine', { id: 'fine', baseId: 'b1', title: 'complete', sourceType: 'file', charCount: 10, chunkCount: 1, createdAt: 300, updatedAt: 300 })
+      const store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, {
+        chunkStorePath: join(dir, 'chunks.sqlite'),
+        legacyJsonPath: join(dir, 'missing.json'),
+      })
+      expect(store.getDocument('ghost')).toBeUndefined()   // placeholder removed
+      expect(store.getDocument('half')).toBeUndefined()     // no chunks → removed
+      expect(store.getDocument('fine')).toBeDefined()       // has chunks → kept
+      await store.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('serves lexical search through the SQL lanes end to end', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const ctx = new Context()
+      ctx.provide('webServer', { routes: [], register: () => () => {} })
+      ctx.provide('storageDomain', { open: async () => fakeDomain() })
+      await ctx.plugin(KnowledgeService, { ...TEST_CONFIG, chunkStorePath: join(dir, 'chunks.sqlite') })
+      const service = ctx.get('knowledge') as KnowledgeService
+
+      const base = await service.createBase({ name: 'lanes' })
+      await service.addTextDocument({ baseId: base.id, title: '报销', content: '公司的报销流程是提交发票后由财务审批。' })
+      await service.addTextDocument({ baseId: base.id, title: '年假', content: '年假申请需要提前三天报备。' })
+
+      const result = await service.search({ query: '报销流程', baseId: base.id })
+      expect(result.hits.length).toBeGreaterThan(0)
+      expect(result.hits[0].documentTitle).toBe('报销')
+      const zh = await service.search({ query: '年假', baseId: base.id })
+      expect(zh.hits[0].documentTitle).toBe('年假')
+      // Release the SQLite handle so the temp dir can be removed.
+      await (service as unknown as { store: { close(): Promise<void> } }).store.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('excludes large ID and title sets before SQLite candidate pools in every mode (#39)', async () => {
+    const dir = await tempDir()
+    vi.stubEnv('DSH_HOME', dir)
+    const ctx = new Context()
+    ctx.provide('webServer', { routes: [], register: () => () => {} })
+    ctx.provide('storageDomain', { open: async () => fakeDomain() })
+    const fiber = await ctx.plugin(KnowledgeService, { ...TEST_CONFIG, chunkStorePath: join(dir, 'chunks.sqlite') })
+    const service = ctx.get('knowledge') as KnowledgeService
+    try {
+      const base = await service.createBase({ name: 'exclusion-pool' })
+      const foreignBase = await service.createBase({ name: 'foreign' })
+      const store = (service as unknown as { store: Store }).store
+      const catalogIds = Array.from({ length: 600 }, (_, index) => `catalog-${index}`)
+      const bodyIds = ['body-0', 'body-1']
+      const documents = [
+        ...catalogIds.map(id => ({ id, title: `处理记录 ${id}`, baseId: base.id, text: 'needle needle needle 年假 appendixonlymarker', vector: [1, 0] })),
+        ...bodyIds.map(id => ({ id, title: `正文 ${id}`, baseId: base.id, text: `needle 年假 ${'body evidence '.repeat(20)}`, vector: [0.9, 0.1] })),
+        { id: 'foreign-body', title: 'foreign 正文', baseId: foreignBase.id, text: 'needle 年假', vector: [1, 0] },
+      ]
+      for (const doc of documents) {
+        await store.putDocument({
+          id: doc.id, baseId: doc.baseId, title: doc.title, sourceType: 'text',
+          rawText: doc.text, charCount: doc.text.length, chunkCount: 1, createdAt: 10, updatedAt: 20,
+        })
+      }
+      await store.putChunkBatch(documents.map(doc => ({
+        id: `${doc.id}-chunk`, docId: doc.id, baseId: doc.baseId, index: 0,
+        text: doc.text, context: doc.title, embedding: doc.vector, embeddingModel: 'openai:test',
+      })))
+      await service.setConfig({ embeddingProvider: 'openai', embeddingBaseUrl: 'https://embed.invalid', embeddingModel: 'test', mmrDiversity: 0.5 })
+      const httpFetch = fetch
+      vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ data: [{ embedding: [1, 0] }] }))))
+
+      for (const mode of ['lexical', 'vector', 'hybrid', 'auto'] as const) {
+        const request = { query: 'needle', baseId: base.id, topK: 2, mode }
+        const baseline = await service.search({ ...request, mmr: false })
+        expect(baseline.hits).toHaveLength(2)
+        expect(baseline.hits.every(hit => catalogIds.includes(hit.docId)), mode).toBe(true)
+        for (const filter of [{ excludeDocIds: catalogIds }, { titleExcludes: [' 处理记录 ', '', '处理记录'] }]) {
+          const result = await service.search({ ...request, filter })
+          expect(new Set(result.hits.map(hit => hit.docId)), mode).toEqual(new Set(bodyIds))
+          expect(result.total).toBe(2)
+          if (mode !== 'vector') expect(result.retrieval?.lexical.succeeded).toBe(true)
+          if (mode !== 'lexical') expect(result.retrieval?.vector.succeeded).toBe(true)
+        }
+      }
+
+      const combined = await service.search({ query: 'needle', baseId: base.id, mode: 'hybrid', filter: {
+        docIds: [...catalogIds, ...bodyIds, 'foreign-body'], excludeDocIds: ['body-0'], titleExcludes: ['处理记录'],
+        titleIncludes: 'body', sourceTypes: ['text'], updatedAfter: 10, updatedBefore: 20,
+      } })
+      expect(combined.hits.map(hit => hit.docId)).toEqual(['body-1'])
+      expect(combined.total).toBe(1)
+      const appendix = await service.search({ query: 'appendixonlymarker', baseId: base.id, mode: 'lexical', filter: { excludeDocIds: catalogIds } })
+      expect(appendix.hits).toEqual([])
+      const multi = await service.search({ query: 'needle', queries: ['年假'], baseId: base.id, topK: 2, mode: 'hybrid', filter: { titleExcludes: ['处理记录'] } })
+      expect(new Set(multi.hits.map(hit => hit.docId))).toEqual(new Set(bodyIds))
+      expect(multi.total).toBe(2)
+      const acrossBases = await service.search({ query: 'needle', baseIds: [base.id, foreignBase.id], topK: 3, mode: 'lexical', filter: { titleExcludes: ['处理记录'] } })
+      expect(new Set(acrossBases.hits.map(hit => hit.docId))).toEqual(new Set([...bodyIds, 'foreign-body']))
+
+      const route = knowledgeRoute(service)
+      if (route.kind !== 'prefix') throw new Error('expected prefix route')
+      const server = createServer((req, res) => { void route.handler(req, res) })
+      await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve))
+      try {
+        const address = server.address()
+        if (address === null || typeof address === 'string') throw new Error('missing server address')
+        const post = async (query: string, filter?: { excludeDocIds?: string[]; titleExcludes?: string[] }) => {
+          const response = await httpFetch(`http://127.0.0.1:${address.port}/knowledge/search`, {
+            method: 'POST', headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({ query, baseId: base.id, topK: 2, mode: 'lexical', filter }),
+          })
+          expect(response.status).toBe(200)
+          const envelope = await response.json() as { ok: boolean; value: SearchResult }
+          expect(envelope.ok).toBe(true)
+          return envelope.value
+        }
+        expect((await post('appendixonlymarker')).hits).toHaveLength(2)
+        expect((await post('appendixonlymarker', { excludeDocIds: catalogIds })).hits).toEqual([])
+        for (const filter of [{ excludeDocIds: catalogIds }, { titleExcludes: [' 处理记录 '] }]) {
+          const result = await post('needle', filter)
+          expect(new Set(result.hits.map(hit => hit.docId))).toEqual(new Set(bodyIds))
+          expect(result.total).toBe(2)
+        }
+      } finally {
+        await new Promise<void>((resolve, reject) => {
+          server.close(error => error ? reject(error) : resolve())
+          server.closeAllConnections()
+        })
+      }
+    } finally {
+      vi.unstubAllGlobals()
+      await fiber.dispose()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('releases the SQLite store when the plugin fiber is disposed, so the home can be removed', async () => {
+    // The supported teardown path is fiber disposal, not reaching into the
+    // private store: its effects must close the SQLite chunk store. On Windows
+    // an open SQLite handle makes the unlink fail with EPERM and leaves the
+    // directory behind, so this contract is what a temp-home cleanup (the
+    // benchmark) relies on. Runs in the Native job on Windows/macOS/Linux.
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const ctx = new Context()
+      ctx.provide('webServer', { routes: [], register: () => () => {} })
+      ctx.provide('storageDomain', { open: async () => fakeDomain() })
+      const fiber = await ctx.plugin(KnowledgeService, { ...TEST_CONFIG, chunkStorePath: join(dir, 'chunks.sqlite') })
+      const service = ctx.get('knowledge') as KnowledgeService
+
+      const base = await service.createBase({ name: 'lifecycle' })
+      await service.addTextDocument({ baseId: base.id, title: 'notes', content: 'chunks land in the sqlite file' })
+      expect(existsSync(join(dir, 'chunks.sqlite'))).toBe(true)
+
+      await fiber.dispose()
+      // Fails with EPERM on Windows if disposal left the SQLite handle open.
+      await rm(dir, { recursive: true, force: false })
+      expect(existsSync(dir)).toBe(false)
+    } finally {
+      await rm(dir, { recursive: true, force: true }).catch(() => {})
+    }
+  })
+
+  it('persists raw source bytes, re-reads them on reindex, and cleans them on delete', async () => {
+    const dir = await tempDir()
+    try {
+      const domain = fakeDomain()
+      const store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, {
+        chunkStorePath: join(dir, 'chunks.sqlite'),
+        legacyJsonPath: join(dir, 'missing.json'),
+      })
+      expect(store.raw).toBeDefined()
+
+      // Upload a text file: the raw copy must exist next to the chunk store.
+      await store.putDocument({
+        id: 'd1',
+        baseId: 'b1',
+        title: 'notes.txt',
+        sourceType: 'file',
+        fileName: 'notes.txt',
+        rawFilePath: `${'b1'}/d1.txt`,
+        charCount: 3,
+        chunkCount: 1,
+        createdAt: 1,
+      })
+      await store.raw!.write('b1', 'd1', '.txt', new TextEncoder().encode('abc'))
+      await store.putChunks([{ id: 'c1', docId: 'd1', baseId: 'b1', index: 0, text: 'abc' }])
+
+      const bytes = await store.raw!.read('b1/d1.txt')
+      expect(new TextDecoder().decode(bytes!)).toBe('abc')
+
+      // Delete removes the raw file.
+      await store.raw!.delete('b1/d1.txt')
+      expect(await store.raw!.read('b1/d1.txt')).toBeNull()
+
+      // deleteBase removes the whole base's raw directory.
+      await store.raw!.write('b1', 'd1', '.txt', new TextEncoder().encode('abc'))
+      await store.raw!.deleteBase('b1')
+      expect(await store.raw!.read('b1/d1.txt')).toBeNull()
+      await store.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('resumes a placeholder that only holds a raw source file (crash before parse)', async () => {
+    const dir = await tempDir()
+    try {
+      // Seed a crashed state: a placeholder with rawFilePath + raw bytes but
+      // no rawText and no chunks (crash between the raw write and parse).
+      {
+        const domain = fakeDomain()
+        const bases = domain.table('bases') as unknown as FakeTable<string, unknown>
+        const documents = domain.table('documents') as unknown as FakeTable<string, unknown>
+        await bases.put('b1', { id: 'b1', name: 'b1', description: '', createdAt: 1, updatedAt: 1 })
+        await documents.put('rawonly', { id: 'rawonly', baseId: 'b1', title: 'notes.txt', sourceType: 'file', fileName: 'notes.txt', rawFilePath: 'b1/rawonly.txt', charCount: 0, chunkCount: 0, createdAt: 100, updatedAt: 100 })
+        const store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, {
+          chunkStorePath: join(dir, 'chunks.sqlite'),
+          legacyJsonPath: join(dir, 'missing.json'),
+        })
+        await store.raw!.write('b1', 'rawonly', '.txt', new TextEncoder().encode('hello from raw file'))
+        await store.close()
+      }
+      // Reopen: the raw-only placeholder must be reported for resume, not removed.
+      const domain = fakeDomain()
+      const bases = domain.table('bases') as unknown as FakeTable<string, unknown>
+      const documents = domain.table('documents') as unknown as FakeTable<string, unknown>
+      await bases.put('b1', { id: 'b1', name: 'b1', description: '', createdAt: 1, updatedAt: 1 })
+      await documents.put('rawonly', { id: 'rawonly', baseId: 'b1', title: 'notes.txt', sourceType: 'file', fileName: 'notes.txt', rawFilePath: 'b1/rawonly.txt', charCount: 0, chunkCount: 0, createdAt: 100, updatedAt: 100 })
+      const store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, {
+        chunkStorePath: join(dir, 'chunks.sqlite'),
+        legacyJsonPath: join(dir, 'missing.json'),
+      })
+      const recovery = await store.recoverInterruptedImports(Date.now())
+      expect(recovery.removed).toBe(0)
+      expect(recovery.resume).toContain('rawonly')
+      expect(store.getDocument('rawonly')).toBeDefined()
+      // The raw bytes are still readable for the resume path.
+      const bytes = await store.raw!.read('b1/rawonly.txt')
+      expect(new TextDecoder().decode(bytes!)).toBe('hello from raw file')
+      await store.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  // FTS population plus VACUUM is intentionally I/O-heavy and can exceed the
+  // 5 s unit-test budget on a contended Windows runner.
+  it('reclaims space after a large delete and keeps FTS search working', async () => {
+    const dir = await tempDir()
+    try {
+      const db = new ChunkDatabase(join(dir, 'chunks.sqlite'))
+      // Fill with enough real text so the file grows past the 8 MB VACUUM
+      // threshold, then delete most of it.
+      const big = 'reclaimable paragraph content '.repeat(900)
+      const docs: KnowledgeChunk[] = []
+      for (let d = 0; d < 30; d += 1) {
+        for (let i = 0; i < 20; i += 1) {
+          docs.push(chunk(`c${d}-${i}`, `d${d}`, 'b1', i, `${big} doc ${d} chunk ${i}`))
+        }
+      }
+      db.putChunks(docs)
+      // Small delete: below the threshold → no VACUUM, cheap no-op.
+      await db.deleteChunks('d0')
+      const small = db.reclaimSpace()
+      expect(small.vacuumed).toBe(false)
+
+      // Large delete: most documents go → the threshold is crossed.
+      for (let d = 1; d < 28; d += 1) await db.deleteChunks(`d${d}`)
+      const outcome = db.reclaimSpace()
+      expect(outcome.vacuumed).toBe(true)
+      expect(outcome.reclaimedBytes).toBeGreaterThan(0)
+
+      // FTS still answers after the optimize + VACUUM — and EVERY remaining
+      // row is reachable through the stable fts_rowid surrogate (a rowid-keyed
+      // FTS would silently drop rows once VACUUM renumbers the table).
+      const result = await db.lexical('reclaimable', ['b1'], 100)
+      expect(result.total).toBe(40) // d28 + d29 remain (d0..d27 deleted)
+      expect(result.hits.length).toBe(40)
+      expect(result.hits.every(hit => hit.docId === 'd28' || hit.docId === 'd29')).toBe(true)
+
+      // Writes after the rebuild keep the trigger-assigned surrogate unique.
+      db.putChunks([
+        chunk('c-new', 'd30', 'b1', 0, `${big} doc 30`),
+        chunk('c-new2', 'd30', 'b1', 1, `${big} doc 30 again`),
+      ])
+      const after = await db.lexical('doc 30', ['b1'], 10)
+      expect(after.hits.length).toBeGreaterThan(0)
+      await db.deleteChunks('d30')
+      // '30' is a 2-char short term: its LIKE filter is relaxed when it
+      // eliminates every candidate (Cherry's semantics), so other docs' hits
+      // may appear — but the deleted doc's chunks must be gone from both paths.
+      const gone = await db.lexical('doc 30', ['b1'], 10)
+      expect(gone.hits.some(hit => hit.docId === 'd30')).toBe(false)
+      const exact = await db.lexical('reclaimable', ['b1'], 100)
+      expect(exact.hits.some(hit => hit.docId === 'd30')).toBe(false)
+      db.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  }, 30_000)
+})
+
+describe('KnowledgeService restart', () => {
+  it('reapplies persisted runtime overrides (cache dir + HF mirror) on a fresh start without an explicit save', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const domain = fakeDomain()
+      const facility = { open: async () => domain }
+      const mount = async (): Promise<KnowledgeService> => {
+        const ctx = new Context()
+        ctx.provide('webServer', { routes: [], register: () => () => {} })
+        ctx.provide('storageDomain', facility)
+        await ctx.plugin(KnowledgeService, { ...TEST_CONFIG, chunkStorePath: join(dir, 'chunks.sqlite') })
+        return ctx.get('knowledge') as KnowledgeService
+      }
+      const closeStore = async (service: KnowledgeService): Promise<void> => {
+        await (service as unknown as { store: { close(): Promise<void> } }).store.close()
+      }
+
+      // First "run": mount, save runtime overrides, tear down.
+      const service1 = await mount()
+      const modelsDir = join(dir, 'models')
+      await service1.setConfig({ localModelCacheDir: modelsDir, hfEndpoint: 'https://hf-mirror.com' })
+      await closeStore(service1)
+
+      // Second "run" on the same domain — the restart scenario. The saved
+      // overrides must be live again from the first request: model checks use
+      // the restored cache dir, downloads use the restored mirror.
+      const { localModelCacheDir, getHfEndpoint } = await import('../src/knowledge/embed.js')
+      const service2 = await mount()
+      try {
+        expect(localModelCacheDir()).toBe(resolve(modelsDir))
+        expect(getHfEndpoint()).toBe('https://hf-mirror.com')
+        expect(service2.getConfig().localModelCacheDir).toBe(resolve(modelsDir))
+      } finally {
+        await closeStore(service2)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('local-path import source tracking', () => {
+  const decode = (bytes: Uint8Array | null): string => bytes !== null ? new TextDecoder().decode(bytes) : ''
+  const mount = async (dir: string): Promise<KnowledgeService> => {
+    const ctx = new Context()
+    ctx.provide('webServer', { routes: [], register: () => () => {} })
+    ctx.provide('storageDomain', { open: async () => fakeDomain() })
+    await ctx.plugin(KnowledgeService, { ...TEST_CONFIG, chunkStorePath: join(dir, 'chunks.sqlite') })
+    return ctx.get('knowledge') as KnowledgeService
+  }
+  const closeStore = async (service: KnowledgeService): Promise<void> => {
+    await (service as unknown as { store: { close(): Promise<void> } }).store.close()
+  }
+  const storeOf = (service: KnowledgeService): Store =>
+    (service as unknown as { store: Store }).store
+
+  it('reindexes a single-file path import from the repointed sourcePath', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const src1 = join(dir, 'a.txt')
+      const src2 = join(dir, 'b.txt')
+      await writeFile(src1, 'alpha content', 'utf8')
+      await writeFile(src2, 'beta content', 'utf8')
+
+      const service = await mount(dir)
+      try {
+        const base = await service.createBase({ name: 'src' })
+        await service.importFromPath(base.id, src1)
+        const store = storeOf(service)
+        const doc = store.listDocuments(base.id).find(d => d.sourceType === 'file')
+        expect(doc).toBeDefined()
+        expect(doc!.rawText).toContain('alpha')
+        expect(doc!.sourcePath).toBe(await realpath(src1))
+        const beforeHash = doc!.contentHash
+
+        // Repoint the source to a different file and reindex: the reindex must
+        // rebuild from the NEW path (previously it re-read the old raw copy).
+        await service.setBaseSourcePath(base.id, doc!.id, src2)
+        await service.reindexDocument(doc!.id)
+        const reindexed = store.getDocument(doc!.id)
+        expect(reindexed).toBeDefined()
+        expect(reindexed!.rawText).toContain('beta')
+        expect(reindexed!.contentHash).not.toBe(beforeHash)
+        expect(reindexed!.sourcePath).toBe(await realpath(src2))
+        // The persisted raw copy was refreshed to the new file's bytes.
+        expect(decode(await store.raw!.read(reindexed!.rawFilePath!))).toContain('beta')
+
+        // Mixed-base repoint: with a directory root present, a FILE repoint must
+        // still select the top-level files (not the directories).
+        const mixed = join(dir, 'mixed')
+        await mkdir(join(mixed, 'sub'), { recursive: true })
+        await writeFile(join(mixed, 'sub', 'c.txt'), 'c content', 'utf8')
+        await writeFile(join(dir, 'd.txt'), 'delta content', 'utf8')
+        await service.importFromPath(base.id, mixed)      // adds a directory root
+        await service.importFromPath(base.id, join(dir, 'd.txt')) // adds a top-level file
+        const dDoc = store.listDocuments(base.id).find(d => d.sourceType === 'file' && d.fileName === 'd.txt')
+        expect(dDoc).toBeDefined()
+        const src3 = join(dir, 'e.txt')
+        await writeFile(src3, 'epsilon content', 'utf8')
+        await service.setBaseSourcePath(base.id, dDoc!.id, src3)
+        await service.reindexDocument(dDoc!.id)
+        expect(store.getDocument(dDoc!.id)!.rawText).toContain('epsilon')
+        // The directory root was NOT touched by the file repoint.
+        const dirRoot = store.listDocuments(base.id).find(d => d.sourceType === 'directory')
+        expect(dirRoot).toBeDefined()
+        expect(dirRoot!.sourcePath).toBe(await realpath(mixed))
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps raw copies distinct when two directory roots share a relative path', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const rootA = join(dir, 'rootA')
+      const rootB = join(dir, 'rootB')
+      await mkdir(join(rootA, 'docs'), { recursive: true })
+      await mkdir(join(rootB, 'docs'), { recursive: true })
+      await writeFile(join(rootA, 'docs', 'report.txt'), 'report from A', 'utf8')
+      await writeFile(join(rootB, 'docs', 'report.txt'), 'report from B', 'utf8')
+
+      const service = await mount(dir)
+      try {
+        const base = await service.createBase({ name: 'collide' })
+        await service.importFromPath(base.id, rootA)
+        await service.importFromPath(base.id, rootB)
+        const store = storeOf(service)
+        const docs = store.listDocuments(base.id).filter(d => d.sourceType === 'file')
+        expect(docs).toHaveLength(2)
+
+        // Both files share the relative path docs/report.txt, but each must own
+        // a distinct raw copy whose bytes match its own source (no collision).
+        const raws = new Set<string>()
+        const contents: string[] = []
+        for (const doc of docs) {
+          expect(doc.rawFilePath).toBeDefined()
+          raws.add(doc.rawFilePath!)
+          contents.push(decode(await store.raw!.read(doc.rawFilePath!)))
+        }
+        expect(raws.size).toBe(2)
+        expect(contents).toEqual(expect.arrayContaining(['report from A', 'report from B']))
+
+        // Removing report.txt from rootA and rescanning rootA must delete A's
+        // doc and its raw copy, but leave rootB's cached raw untouched.
+        await rm(join(rootA, 'docs', 'report.txt'))
+        const rootAId = store.listDocuments(base.id)
+          .find(d => d.sourceType === 'directory' && d.title === 'rootA')!.id
+        await service.reindexDocument(rootAId)
+        const remaining = store.listDocuments(base.id).filter(d => d.sourceType === 'file')
+        expect(remaining).toHaveLength(1)
+        const survivor = store.listDocuments(base.id).filter(d => d.sourceType === 'file')[0]
+        expect(decode(await store.raw!.read(survivor.rawFilePath!))).toContain('B')
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('repoints exactly one selected top-level source', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const first = join(dir, 'first.txt')
+      const second = join(dir, 'second.txt')
+      const replacement = join(dir, 'replacement.txt')
+      await writeFile(first, 'first source', 'utf8')
+      await writeFile(second, 'second source', 'utf8')
+      await writeFile(replacement, 'replacement source', 'utf8')
+      // A stored local source path is the resolved real path (macOS reaches its
+      // temp directory through the /var symlink), so expectations resolve too.
+      const [firstPath, secondPath, replacementPath] =
+        await Promise.all([realpath(first), realpath(second), realpath(replacement)])
+
+      const service = await mount(dir)
+      try {
+        const base = await service.createBase({ name: 'targeted' })
+        await service.importFromPath(base.id, first)
+        await service.importFromPath(base.id, second)
+        const store = storeOf(service)
+        const firstDoc = store.listDocuments(base.id).find(doc => doc.sourcePath === firstPath)!
+        const secondDoc = store.listDocuments(base.id).find(doc => doc.sourcePath === secondPath)!
+
+        await expect(service.setBaseSourcePath(base.id, firstDoc.id, replacement))
+          .resolves.toEqual({ set: 1 })
+        expect(store.getDocument(firstDoc.id)?.sourcePath).toBe(replacementPath)
+        expect(store.getDocument(secondDoc.id)?.sourcePath).toBe(secondPath)
+        expect(service.listBases().find(row => row.id === base.id)?.sourceInfo).toEqual([
+          expect.objectContaining({ sourceId: firstDoc.id, sourcePath: replacementPath }),
+          expect.objectContaining({ sourceId: secondDoc.id, sourcePath: secondPath }),
+        ])
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('validates source identity, top-level ownership, path kind, and absolute paths', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const root = join(dir, 'root')
+      const file = join(dir, 'file.txt')
+      await mkdir(root, { recursive: true })
+      await writeFile(join(root, 'child.txt'), 'nested child', 'utf8')
+      await writeFile(file, 'top level file', 'utf8')
+
+      const service = await mount(dir)
+      try {
+        const base = await service.createBase({ name: 'validation' })
+        const other = await service.createBase({ name: 'other' })
+        await service.importFromPath(base.id, root)
+        await service.importFromPath(other.id, file)
+        const textDoc = await service.addTextDocument({ baseId: base.id, title: 'note', content: 'manual note' })
+        const store = storeOf(service)
+        const directoryRoot = store.listDocuments(base.id).find(doc => doc.sourceType === 'directory' && doc.parentDirectoryId === undefined)!
+        const nestedFile = store.listDocuments(base.id).find(doc => doc.sourceType === 'file')!
+        const otherFile = store.listDocuments(other.id).find(doc => doc.sourceType === 'file')!
+
+        await expect(service.importFromPath(base.id, '.')).rejects.toThrow(/absolute/i)
+        await expect(service.setBaseSourcePath(base.id, directoryRoot.id, '.')).rejects.toThrow(/absolute/i)
+        await expect(service.setBaseSourcePath(base.id, directoryRoot.id, file)).rejects.toThrow(/directory/i)
+        await expect(service.setBaseSourcePath(base.id, nestedFile.id, file)).rejects.toThrow(/top-level/i)
+        await expect(service.setBaseSourcePath(base.id, otherFile.id, file)).rejects.toThrow(/does not belong/i)
+        await expect(service.setBaseSourcePath(base.id, textDoc.id, file)).rejects.toThrow(/file or directory source/i)
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('uses the new file identity when a source is repointed across extensions', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const original = join(dir, 'original.txt')
+      const replacement = join(dir, 'replacement.html')
+      await writeFile(original, 'plain original', 'utf8')
+      await writeFile(replacement, '<html><body><h1>Replacement</h1><p>HTML body</p></body></html>', 'utf8')
+
+      const service = await mount(dir)
+      try {
+        const base = await service.createBase({ name: 'parser identity' })
+        await service.importFromPath(base.id, original)
+        const store = storeOf(service)
+        const doc = store.listDocuments(base.id).find(row => row.sourceType === 'file')!
+
+        await service.setBaseSourcePath(base.id, doc.id, replacement)
+        await service.reindexDocument(doc.id)
+
+        const updated = store.getDocument(doc.id)!
+        expect(updated.fileName).toBe('replacement.html')
+        expect(updated.rawText).toContain('Replacement')
+        expect(updated.rawText).not.toContain('<h1>')
+        expect(updated.mimeType).toBeUndefined()
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps the previous raw copy when reindex fails before the new document commits', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const original = join(dir, 'original.txt')
+      const replacement = join(dir, 'replacement.txt')
+      await writeFile(original, 'stable original bytes', 'utf8')
+      await writeFile(replacement, 'candidate replacement bytes', 'utf8')
+
+      const service = await mount(dir)
+      try {
+        const base = await service.createBase({ name: 'failure safe' })
+        await service.importFromPath(base.id, original)
+        const store = storeOf(service)
+        const doc = store.listDocuments(base.id).find(row => row.sourceType === 'file')!
+        const previousRaw = doc.rawFilePath!
+        await service.setBaseSourcePath(base.id, doc.id, replacement)
+
+        const putChunks = vi.spyOn(store, 'commitDocumentGeneration').mockRejectedValueOnce(new Error('simulated chunk commit failure'))
+        await expect(service.reindexDocument(doc.id)).rejects.toThrow('simulated chunk commit failure')
+        putChunks.mockRestore()
+
+        const failed = store.getDocument(doc.id)!
+        expect(store.getStagedDocumentGeneration(doc.id)).toBeUndefined()
+        expect(failed.rawFilePath).toBe(previousRaw)
+        expect(decode(await store.raw!.read(previousRaw))).toContain('stable original bytes')
+        expect(await store.raw!.listAll()).toEqual([previousRaw])
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('returns per-file errors from a partial directory path import', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const source = join(dir, 'partial')
+      await mkdir(source, { recursive: true })
+      await writeFile(join(source, 'good.txt'), 'readable content', 'utf8')
+      await writeFile(join(source, 'broken.pptx'), new Uint8Array([1, 2, 3, 4]))
+
+      const service = await mount(dir)
+      try {
+        const base = await service.createBase({ name: 'partial import' })
+        const result = await service.importFromPath(base.id, source)
+        expect(result.kind).toBe('directory')
+        expect(result.imported).toBe(1)
+        expect(result.errors).toHaveLength(1)
+        expect(result.errors[0]?.file).toContain('broken.pptx')
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('reuses one canonical directory source, reports a truthful diff, and refreshes live leaf paths', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const source = join(dir, 'tracked')
+      const nested = join(source, 'nested')
+      const alpha = join(source, 'alpha.txt')
+      const beta = join(nested, 'beta.txt')
+      await mkdir(nested, { recursive: true })
+      await writeFile(alpha, 'alpha original', 'utf8')
+      await writeFile(beta, 'beta original', 'utf8')
+
+      const service = await mount(dir)
+      try {
+        const base = await service.createBase({ name: 'tracked source' })
+        const first = await service.importFromPath(base.id, source)
+        expect(first.kind).toBe('directory')
+        expect(first.mode).toBe('created')
+        expect(first.sync?.status).toBe('synced')
+        const store = storeOf(service)
+        // Stored local paths are resolved real paths, so the expectation is
+        // built from realpath too: macOS reaches its temp directory through the
+        // /var symlink, and only the resolved form is a stable identity.
+        const canonicalSource = await realpath(source)
+        const canonicalAlpha = join(canonicalSource, 'alpha.txt')
+        const canonicalBeta = join(canonicalSource, 'nested', 'beta.txt')
+        const root = store.listDocuments(base.id).find(doc => doc.sourceType === 'directory' && doc.parentDirectoryId === undefined)!
+        const alphaDoc = store.listDocuments(base.id).find(doc => doc.sourcePath === canonicalAlpha)!
+        expect(root).toBeDefined()
+        expect(alphaDoc).toBeDefined()
+
+        const repeated = await service.importFromPath(base.id, source)
+        expect(repeated.mode).toBe('synced')
+        expect(repeated.sourceId).toBe(root.id)
+        expect(repeated.sync?.status).toBe('unchanged')
+        expect(store.listDocuments(base.id).filter(doc => doc.sourceType === 'directory' && doc.parentDirectoryId === undefined)).toHaveLength(1)
+        expect(store.getDocument(alphaDoc.id)?.id).toBe(alphaDoc.id)
+
+        await writeFile(alpha, 'alpha changed from disk', 'utf8')
+        await writeFile(join(source, 'gamma.txt'), 'gamma new file', 'utf8')
+        await rm(beta)
+        const synced = await service.importFromPath(base.id, source)
+        expect(synced.sync?.status).toBe('synced')
+        expect(synced.sync?.created).toBeGreaterThanOrEqual(1)
+        expect(synced.sync?.updated).toBeGreaterThanOrEqual(1)
+        expect(synced.sync?.deleted).toBeGreaterThanOrEqual(1)
+        expect(store.getDocument(alphaDoc.id)?.rawText).toContain('alpha changed from disk')
+        expect(store.getDocument(alphaDoc.id)?.sourcePath).toBe(canonicalAlpha)
+        expect(store.listDocuments(base.id).find(doc => doc.sourcePath === canonicalBeta)).toBeUndefined()
+
+        // A direct file reindex now reads its live path too, not merely the
+        // stored snapshot left by the original directory import.
+        await writeFile(alpha, 'alpha direct reindex', 'utf8')
+        await service.reindexDocument(alphaDoc.id)
+        expect(store.getDocument(alphaDoc.id)?.rawText).toContain('alpha direct reindex')
+
+        // Base-wide background reindex processes the tracked root once rather
+        // than skipping every directory container.
+        await writeFile(alpha, 'alpha background reindex', 'utf8')
+        const started = await service.startReindexBase(base.id)
+        // Wall-clock deadline rather than a fixed iteration budget: this waits on
+        // a real background job, and a contended runner can need far more
+        // event-loop turns than any small constant allows.
+        let status = service.reindexJobStatus(started.jobId)
+        const deadline = process.hrtime.bigint() + 10_000_000_000n
+        while ((status === undefined || !status.done) && process.hrtime.bigint() < deadline) {
+          await new Promise(resolve => setTimeout(resolve, 10))
+          status = service.reindexJobStatus(started.jobId)
+        }
+        expect(status?.done).toBe(true)
+        expect(status?.errors).toEqual([])
+        expect(store.getDocument(alphaDoc.id)?.rawText).toContain('alpha background reindex')
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects ambiguous historical directory roots and requires an explicit recursive delete', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const source = join(dir, 'guarded')
+      await mkdir(source, { recursive: true })
+      await writeFile(join(source, 'note.txt'), 'guarded source text', 'utf8')
+
+      const service = await mount(dir)
+      try {
+        const base = await service.createBase({ name: 'guarded source' })
+        await service.importFromPath(base.id, source)
+        const store = storeOf(service)
+        const root = store.listDocuments(base.id).find(doc => doc.sourceType === 'directory' && doc.parentDirectoryId === undefined)!
+        const impact = service.getDeleteImpact(root.id)
+        expect(impact.requiresRecursive).toBe(true)
+        expect(impact.directories).toBeGreaterThanOrEqual(1)
+        expect(impact.files).toBe(1)
+        expect(impact.rawSnapshots).toBe(1)
+
+        await expect(service.deleteDocument(root.id)).rejects.toMatchObject({ code: 'recursive_confirmation_required' })
+        expect(store.getDocument(root.id)).toBeDefined()
+        expect(store.listDocuments(base.id).filter(doc => doc.sourceType === 'file')).toHaveLength(1)
+
+        // Simulate an old dirty base that already contains two roots attached
+        // to the same canonical source. A re-import must refuse to choose one.
+        const duplicate = { ...root, id: crypto.randomUUID(), title: 'legacy duplicate source', createdAt: Date.now(), updatedAt: Date.now() }
+        await store.putDocument(duplicate)
+        await expect(service.importFromPath(base.id, source)).rejects.toMatchObject({ code: 'ambiguous_source' })
+        expect(store.getDocument(root.id)).toBeDefined()
+        expect(store.getDocument(duplicate.id)).toBeDefined()
+
+        await service.deleteDocuments([root.id], { recursive: true })
+        expect(store.getDocument(root.id)).toBeUndefined()
+        // The deliberately ambiguous historical root remains for explicit
+        // user review; the sync engine never auto-cleans it.
+        expect(store.getDocument(duplicate.id)).toBeDefined()
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('clears the crash-resumable marker when an import completes', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const service = await mount(dir)
+      try {
+        const store = storeOf(service)
+        const base = await service.createBase({ name: 'completed import' })
+        const created = await service.addTextDocument({ baseId: base.id, title: 'note', content: 'a completed import body' })
+
+        // The pre-embedding write marks the row resumable; the completing write
+        // must drop the marker, or startup recovery treats every imported
+        // document as an interrupted import.
+        expect(store.getDocument(created.id)?.incomplete).toBeUndefined()
+
+        // The observable consequence: recovery finds nothing to resume.
+        const recovery = await store.recoverInterruptedImports(Date.now() + 1)
+        expect(recovery.resume).toEqual([])
+        expect(recovery.removed).toBe(0)
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('removes chunk rows left behind when a document row is already gone', async () => {
+    const dir = await tempDir()
+    try {
+      vi.stubEnv('DSH_HOME', dir)
+      const service = await mount(dir)
+      try {
+        const store = storeOf(service)
+        const base = await service.createBase({ name: 'orphans' })
+        const document = await service.addTextDocument({ baseId: base.id, title: 'orphan', content: 'orphan chunk body' })
+        expect(store.listChunks(base.id).length).toBeGreaterThan(0)
+
+        // Simulate a delete that landed while a batch was still in flight: the
+        // document row goes away first, the chunk rows are still there. Without
+        // reconciliation they keep matching lexical and vector search forever.
+        await store.deleteDocument(document.id)
+        expect(store.listChunks(base.id).length).toBeGreaterThan(0)
+
+        expect(await store.reconcileOrphanChunks()).toBe(1)
+        expect(store.listChunks(base.id)).toHaveLength(0)
+        // A second pass has nothing left to do.
+        expect(await store.reconcileOrphanChunks()).toBe(0)
+      } finally {
+        await closeStore(service)
+      }
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('storage failure reporting', () => {
+  const locked = () => Object.assign(new Error('EPERM: rename knowledge.json'), { code: 'EPERM', syscall: 'rename' })
+
+  it.each(['path', 'upload'] as const)('retains a completed %s import when the base timestamp cannot be saved', async mode => {
+    const dir = await tempDir()
+    const domain = fakeDomain()
+    const ctx = new Context()
+    ctx.provide('webServer', { register: () => () => {} })
+    ctx.provide('storageDomain', { open: async () => domain })
+    const fiber = await ctx.plugin(KnowledgeService, { ...TEST_CONFIG, chunkStorePath: join(dir, 'chunks.sqlite') })
+    const service = ctx.get('knowledge') as KnowledgeService
+    try {
+      const base = await service.createBase({ name: 'imports' })
+      vi.spyOn(domain.table('bases'), 'put').mockRejectedValue(locked())
+      if (mode === 'path') {
+        const source = join(dir, 'notes.txt')
+        await writeFile(source, 'Saved searchable evidence.')
+        await expect(service.importFromPath(base.id, source)).rejects.toMatchObject({ name: 'MetadataWriteError' })
+      } else {
+        await service.addFileDocument({ baseId: base.id, fileName: 'notes.txt', contentBase64: Buffer.from('Saved searchable evidence.').toString('base64') })
+        await service.waitForIdle()
+      }
+      const store = (service as unknown as { store: Store }).store
+      const docs = store.listDocuments(base.id)
+      expect(docs).toHaveLength(1)
+      expect(docs[0].errorCode).toBeUndefined()
+      expect(docs[0].incomplete).toBeUndefined()
+      expect(store.listChunksByDoc(docs[0].id)[0].text).toContain('Saved searchable evidence.')
+      expect(Buffer.from((await store.raw!.read(docs[0].rawFilePath!))!).toString()).toBe('Saved searchable evidence.')
+      expect((await service.search({ baseId: base.id, query: 'searchable evidence' })).hits).toHaveLength(1)
+    } finally {
+      await fiber.dispose()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('retries base/document/global primitives and merges concurrent settings after retry', async () => {
+    const dir = await tempDir()
+    const domain = fakeDomain()
+    const store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, {
+      chunkStorePath: join(dir, 'chunks.sqlite'), legacyJsonPath: join(dir, 'missing.json'),
+    })
+    try {
+      const bases = domain.table('bases')
+      const documents = domain.table('documents')
+      const putBase = vi.spyOn(bases, 'put').mockRejectedValueOnce(locked())
+      await store.putBase({ id: 'b1', name: 'original', description: '', createdAt: 1, updatedAt: 1 })
+      expect(putBase).toHaveBeenCalledTimes(2)
+      const doc: KnowledgeDocument = { id: 'd1', baseId: 'b1', title: 'original', sourceType: 'text', rawText: 'text', charCount: 4, chunkCount: 0, createdAt: 1 }
+      const putDoc = vi.spyOn(documents, 'put').mockRejectedValueOnce(locked())
+      await store.putDocument(doc)
+      expect(putDoc).toHaveBeenCalledTimes(2)
+      const setGlobal = vi.spyOn(domain.global, 'set').mockRejectedValueOnce(locked())
+      await Promise.all([store.setConfigOverrides({ topK: 5 }), store.setConfigOverrides({ chunkSize: 100 }), store.setGroups(['group'])])
+      expect(setGlobal).toHaveBeenCalledTimes(4)
+      expect(store.getConfigOverrides()).toMatchObject({ topK: 5, chunkSize: 100 })
+      expect(store.getGroups()).toEqual(['group'])
+      const deleteDoc = vi.spyOn(documents, 'delete').mockRejectedValueOnce(locked())
+      await store.deleteDocument(doc.id)
+      expect(deleteDoc).toHaveBeenCalledTimes(2)
+      expect(store.getDocument(doc.id)).toBeUndefined()
+      const deleteBase = vi.spyOn(bases, 'delete').mockRejectedValueOnce(locked())
+      await store.deleteBase('b1')
+      expect(deleteBase).toHaveBeenCalledTimes(2)
+    } finally {
+      await store.close()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('rejects an exhausted write without changing the document or poisoning later writes', async () => {
+    const dir = await tempDir()
+    const domain = fakeDomain()
+    const store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, {
+      chunkStorePath: join(dir, 'chunks.sqlite'), legacyJsonPath: join(dir, 'missing.json'),
+    })
+    try {
+      const doc: KnowledgeDocument = { id: 'd1', baseId: 'b1', title: 'original', sourceType: 'text', rawText: 'text', charCount: 4, chunkCount: 0, incomplete: true, createdAt: 1 }
+      await store.putDocument(doc)
+      const put = vi.spyOn(domain.table('documents'), 'put').mockRejectedValue(locked())
+      await expect(store.putDocument({ ...doc, title: 'unsaved' })).rejects.toMatchObject({ name: 'MetadataWriteError' })
+      expect(put).toHaveBeenCalledTimes(6)
+      expect(store.getDocument(doc.id)).toEqual(doc)
+      put.mockRestore()
+      await store.putDocument({ ...doc, title: 'saved' })
+      expect(store.getDocument(doc.id)?.title).toBe('saved')
+    } finally {
+      await store.close()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('keeps the durable library readable and defers cleanup when startup metadata repair stays locked', async () => {
+    const dir = await tempDir()
+    const domain = fakeDomain()
+    const path = join(dir, 'chunks.sqlite')
+    const db = new ChunkDatabase(path)
+    db.putChunks([chunk('c1', 'd1', 'b1', 0, 'searchable evidence'), chunk('orphan', 'missing', 'b1', 0, 'retained until repair')])
+    db.close()
+    await domain.table('bases').put('b1', { id: 'b1', name: 'existing library', description: '', createdAt: 1, updatedAt: 1 })
+    await domain.table('documents').put('d1', { id: 'd1', baseId: 'b1', title: 'existing document', sourceType: 'text', charCount: 19, chunkCount: 99, createdAt: 1 })
+    const orphanPath = join(dir, 'knowledge-raw', 'b1', 'orphan.txt')
+    await mkdir(join(dir, 'knowledge-raw', 'b1'), { recursive: true })
+    await writeFile(orphanPath, 'keep until metadata recovery succeeds')
+    const put = vi.spyOn(domain.table('documents'), 'put').mockRejectedValue(locked())
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    let store: Store | undefined
+    try {
+      store = await openStore({ open: async () => domain } as unknown as StorageDomainFacility, { chunkStorePath: path, legacyJsonPath: join(dir, 'missing.json') })
+      expect(put).toHaveBeenCalledTimes(6)
+      expect(store.listBases()[0].name).toBe('existing library')
+      expect(store.getDocument('d1')?.chunkCount).toBe(99)
+      expect(store.listChunksByDoc('d1')[0].text).toBe('searchable evidence')
+      expect(store.getChunk('orphan')).toBeDefined()
+      expect(existsSync(orphanPath)).toBe(true)
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('startup metadata repair deferred'))
+      put.mockRestore()
+      await store.putDocument({ ...store.getDocument('d1')!, chunkCount: 1 })
+      expect(store.getDocument('d1')?.chunkCount).toBe(1)
+    } finally {
+      warn.mockRestore()
+      await store?.close()
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('reports storage unavailable instead of substituting an empty in-memory store', async () => {
+    const dir = await tempDir()
+    try {
+      // A plain file where the chunk-store directory must go makes the open fail
+      // AFTER the domain facility has already succeeded. Degrading to memory
+      // here would show an empty library while the data is intact on disk.
+      const blocker = join(dir, 'not-a-directory')
+      await writeFile(blocker, 'x', 'utf8')
+      const facility = { open: async () => fakeDomain() } as unknown as StorageDomainFacility
+      await expect(openStore(facility, { chunkStorePath: join(blocker, 'chunks.sqlite') }))
+        .rejects.toBeInstanceOf(StorageUnavailableError)
+
+      // The documented degradation still applies when there is no backend at all.
+      const memory = await openStore(undefined)
+      expect(memory.listBases()).toHaveLength(0)
+      await memory.close()
+    } finally {
+      await rm(dir, { recursive: true, force: true })
+    }
+  })
+})

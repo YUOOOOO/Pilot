@@ -1,0 +1,964 @@
+/**
+ * Store abstraction over the knowledge data. The service reads and writes
+ * plain data through one interface; implementations back it:
+ * - a durable `DomainStore` — business state (bases, documents, runtime
+ *   config) over `ctx.storageDomain`, chunks in a dedicated SQLite file
+ *   (`ChunkDatabase`) so writes stay O(1) no matter how much data grows;
+ * - an in-memory `MemoryStore` used when the storage backend is unavailable
+ *   (e.g. a headless profile without a configured storage route, or tests).
+ * @module dsh-knowledge/knowledge/store
+ */
+
+import type { Domain, DomainSpec } from '@deepseek-ai/dsh-storage-domain'
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
+import { dirname, extname, join, relative } from 'node:path'
+import { knowledgeDomainSpec, TABLES } from './domain.js'
+import type { ConfigOverrides } from './domain.js'
+import { isMetadataWriteFailure, MetadataWriter } from './metadata-write.js'
+import { ChunkDatabase, hashEmbeddingText, legacyChunkFilePath, migrateLegacyChunkFile, resolveChunkStorePath, searchTextOf, validateDocumentGeneration } from './chunkdb.js'
+import type { RetrievalLane, StagedDocumentGeneration } from './chunkdb.js'
+import type {
+  KnowledgeBase,
+  KnowledgeChunk,
+  KnowledgeDocument,
+} from './types.js'
+
+export interface ChunkStats {
+  count: number
+  embedded: boolean
+  dimensions?: number
+  /** Distinct embedding-model tags on embedded chunks (count per base+model). */
+  embeddingModelCounts: Array<{ baseId: string; model: string; count: number }>
+}
+
+/**
+ * Original source bytes of uploaded documents (Cherry's `raw/` material store):
+ * "import means copy" — the base keeps its own stable copy, and reindex can
+ * re-read + re-parse the source instead of only reusing the persisted text.
+ * Stored under `<chunkStorePath dir>/knowledge-raw/<baseId>/<docId><ext>`.
+ */
+export interface RawFileStore {
+  /** Persist one document's source bytes; returns the base-relative path. */
+  write(baseId: string, docId: string, ext: string, bytes: Uint8Array): Promise<string>
+  /**
+   * Persist bytes at a caller-chosen base-relative path (e.g. a directory
+   * import's `sub/name.pdf`), preserving the on-disk tree. Returns the
+   * base-relative path.
+   */
+  writeRel(baseId: string, relativePath: string, bytes: Uint8Array): Promise<string>
+  /** Read a document's source bytes back (null when absent). */
+  read(relativePath: string): Promise<Uint8Array | null>
+  /** Every stored base-relative path (for orphan-raw reconciliation). */
+  listAll(): Promise<string[]>
+  /** Remove one document's source file by its stored relative path (missing = no-op). */
+  delete(relativePath: string): Promise<void>
+  /** Remove every source file of a base. */
+  deleteBase(baseId: string): Promise<void>
+}
+
+/** Filesystem-backed {@link RawFileStore}. */
+export class RawFileStorage implements RawFileStore {
+  constructor(private readonly root: string) {}
+
+  private pathOf(relativePath: string): string {
+    const resolved = join(this.root, relativePath)
+    // The relative path is always built from uuid segments + a sanitized ext;
+    // assert it stays inside the root regardless.
+    const rel = relativePath.replace(/\\/g, '/')
+    if (rel === '..' || rel.startsWith('../') || rel.includes('/../') || resolved.startsWith(this.root) === false) {
+      throw new Error(`unsafe raw file path: ${relativePath}`)
+    }
+    return resolved
+  }
+
+  async write(baseId: string, docId: string, ext: string, bytes: Uint8Array): Promise<string> {
+    const relativePath = `${baseId}/${docId}${ext}`
+    const full = this.pathOf(relativePath)
+    await mkdir(dirname(full), { recursive: true })
+    await writeFile(full, bytes)
+    return relativePath
+  }
+
+  async writeRel(baseId: string, relativePath: string, bytes: Uint8Array): Promise<string> {
+    const full = this.pathOf(`${baseId}/${relativePath.replace(/\\/g, '/')}`)
+    await mkdir(dirname(full), { recursive: true })
+    await writeFile(full, bytes)
+    return `${baseId}/${relativePath.replace(/\\/g, '/')}`
+  }
+
+  async read(relativePath: string): Promise<Uint8Array | null> {
+    try {
+      return await readFile(this.pathOf(relativePath))
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null
+      throw error
+    }
+  }
+
+  async listAll(): Promise<string[]> {
+    const out: string[] = []
+    const walk = async (dir: string): Promise<void> => {
+      let entries
+      try {
+        entries = await readdir(dir, { withFileTypes: true })
+      } catch {
+        return
+      }
+      for (const entry of entries) {
+        const full = join(dir, entry.name)
+        if (entry.isDirectory()) await walk(full)
+        else out.push(relative(this.root, full).replace(/\\/g, '/'))
+      }
+    }
+    await walk(this.root)
+    return out
+  }
+
+  async delete(relativePath: string): Promise<void> {
+    await rm(this.pathOf(relativePath), { force: true })
+  }
+
+  async deleteBase(baseId: string): Promise<void> {
+    // Validate through the same boundary as every other path: a crafted baseId
+    // (e.g. a tampered domain record) must never let `rm -rf` escape the root.
+    await rm(this.pathOf(baseId), { recursive: true, force: true })
+  }
+}
+
+export interface Store {
+  listBases(): KnowledgeBase[]
+  getBase(id: string): KnowledgeBase | undefined
+  putBase(base: KnowledgeBase): Promise<void>
+  deleteBase(id: string): Promise<void>
+
+  listDocuments(baseId: string): KnowledgeDocument[]
+  getDocument(id: string): KnowledgeDocument | undefined
+  putDocument(doc: KnowledgeDocument): Promise<void>
+  deleteDocument(id: string): Promise<void>
+  /** Incremental candidate batches, invisible until commit; same revision upserts. */
+  stageDocumentGeneration(doc: KnowledgeDocument, chunks: KnowledgeChunk[]): Promise<void>
+  discardStagedDocumentGeneration(docId: string): Promise<void>
+  getStagedDocumentGeneration(docId: string): StagedDocumentGeneration | undefined
+  /** Publish complete chunks + recovery metadata, then reconcile DomainKV. */
+  commitDocumentGeneration(doc: KnowledgeDocument, chunks: KnowledgeChunk[]): Promise<void>
+  recoverDocumentGenerations(): Promise<number>
+
+  listChunks(baseId: string): KnowledgeChunk[]
+  getChunk(id: string): KnowledgeChunk | undefined
+  listChunksByDoc(docId: string, limit?: number, offset?: number): KnowledgeChunk[]
+  /** Chunks of one document whose index falls in `[fromIdx, toIdx]` (sibling context around a search hit). */
+  listChunksByIndexRange(docId: string, fromIdx: number, toIdx: number): KnowledgeChunk[]
+  /** Several merged document ranges fetched as one storage operation. */
+  listChunksByIndexRanges(ranges: readonly { docId: string; fromIdx: number; toIdx: number }[]): KnowledgeChunk[]
+  putChunks(chunks: KnowledgeChunk[]): Promise<void>
+  /**
+   * Incrementally persist a batch of chunks WITHOUT clearing the document's
+   * other rows (the crash-recovery write path — each embedded batch lands
+   * here, so a mid-embedding crash keeps every completed batch).
+   */
+  putChunkBatch(chunks: KnowledgeChunk[]): Promise<void>
+  /** Delete a document's chunks; pass `baseId` to scope the delete to one base. */
+  deleteChunks(docId: string, baseId?: string): Promise<void>
+  /** Drop every chunk of a base in one operation (used by deleteBase). */
+  deleteChunksByBase(baseId: string): Promise<void>
+  /**
+   * Library-wide vector reuse: stored vectors for the given embedding-text
+   * hashes under one embedding model (Cherry's `listExistingEmbeddingHashes` /
+   * decision A4). The caller embeds only the hashes missing from the result,
+   * so re-embedding unchanged chunk text reuses the stored vector.
+   */
+  listEmbeddingVectorsByHashes(hashes: readonly string[], embeddingModel: string): Map<string, number[]>
+  /** Actual chunk count per document, for reconciling stale document metadata. */
+  chunkCountsByDoc(baseIds: readonly string[]): Map<string, number>
+  /** Per-doc chunk presence + embedding coverage in one pass (document lists). */
+  docChunkStatus(baseId: string): { withChunks: Set<string>; missingEmbedding: Set<string> }
+  /**
+   * Startup self-healing, returning:
+   * - `removed`: documents a crashed import left behind with nothing to
+   *   recover — non-directory items with no chunks, no rawText AND no raw
+   *   source file whose last update predates this process's start.
+   * - `resume`: documents that hold recoverable material — rawText (crash
+   *   mid-embedding, chunks partial) or a persisted raw source file (crash
+   *   before/during parse) — re-indexed by the service after startup.
+   */
+  recoverInterruptedImports(startedAt: number): Promise<{ removed: number; resume: string[] }>
+  /** Remove raw source copies no document references (orphans from failed/duplicate imports). */
+  reconcileOrphanRaws(): Promise<number>
+  /** Remove chunk rows whose document no longer exists — the mirror of
+   *  {@link reconcileOrphanRaws} for the chunk store. Returns how many orphaned
+   *  documents had their chunks removed. A delete that lands while a batch is
+   *  in flight can leave rows behind that keep matching the retrieval lanes
+   *  (they scope by base, not by document existence). */
+  reconcileOrphanChunks(): Promise<number>
+  /** Aggregate chunk stats without loading chunk rows. */
+  chunkStats(baseIds: readonly string[]): ChunkStats
+  /** SQL-backed retrieval lanes (FTS5 + vector scan); absent on in-memory stores. */
+  readonly retrievalLane?: RetrievalLane
+  /** Original source bytes of uploaded documents (absent on in-memory stores). */
+  readonly raw?: RawFileStore
+  /**
+   * Return space a large delete freed back to the OS (Cherry's
+   * `reclaimSpace`): WAL checkpoint, threshold-gated VACUUM + FTS optimize.
+   * Absent on in-memory stores.
+   */
+  readonly reclaimSpace?: () => { vacuumed: boolean; reclaimedBytes: number }
+
+  getConfigOverrides(): ConfigOverrides
+  setConfigOverrides(overrides: ConfigOverrides): Promise<void>
+
+  getGroups(): string[]
+  setGroups(groups: string[]): Promise<void>
+
+  getEnabled(): boolean
+  setEnabled(enabled: boolean): Promise<void>
+  getEnabledBaseIds(): string[]
+  setEnabledBaseIds(ids: string[]): Promise<void>
+
+  close(): Promise<void>
+}
+
+/** Facility surface the store needs — typed locally because the class type is package-private. */
+export interface StorageDomainFacility {
+  open<S extends DomainSpec>(spec: S): Promise<Domain<S>>
+}
+
+export interface OpenStoreOptions {
+  /** Chunk SQLite file; default `<DSH_HOME>/storages/knowledge-chunks.sqlite`. */
+  chunkStorePath?: string
+  /** Legacy JSON unit file to migrate chunks from; default `<DSH_HOME>/storages/knowledge.json`. */
+  legacyJsonPath?: string
+}
+
+/** The durable backend exists but could not be opened or healed. Callers must
+ *  report this rather than pretend the library is empty: the data is intact on
+ *  disk, and an ephemeral store would silently discard every later write. */
+export class StorageUnavailableError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options)
+    this.name = 'StorageUnavailableError'
+  }
+}
+
+/** SQL publication succeeded. Do not roll back sources or overwrite metadata. */
+export class DocumentGenerationCommitError extends Error {
+  readonly published = true
+  constructor(options?: { cause?: unknown }) {
+    super('document generation published; metadata recovery is pending', options)
+    this.name = 'DocumentGenerationCommitError'
+  }
+}
+
+/**
+ * Open a durable store. Business state comes from the domain facility; chunks
+ * live in a plugin-owned SQLite file (`chunkStorePath`, defaulted under
+ * `<DSH_HOME>/storages`). A one-time migration moves any chunks still stored
+ * in the legacy JSON unit file into the SQLite store.
+ *
+ * Falls back to memory only when there is no facility at all (headless runs and
+ * tests). Once the durable backend has been opened, a later failure — a failed
+ * migration or an unreadable file — throws
+ * {@link StorageUnavailableError} instead of degrading: an in-memory store
+ * would show an empty library while the user's data sits safely on disk, and
+ * everything written that session would be lost on restart.
+ */
+export async function openStore(
+  facility: StorageDomainFacility | undefined,
+  options?: OpenStoreOptions,
+): Promise<Store> {
+  if (facility === undefined) return new MemoryStore()
+  const domain = await facility.open(knowledgeDomainSpec)
+  let chunkDb: ChunkDatabase | undefined
+  try {
+    const chunkStorePath = resolveChunkStorePath(options?.chunkStorePath)
+    chunkDb = new ChunkDatabase(chunkStorePath)
+    await migrateLegacyChunkFile(options?.legacyJsonPath ?? legacyChunkFilePath(), chunkDb, message => console.warn(message))
+    // Original source bytes live next to the chunk store (Cherry's `raw/`
+    // material store): `<chunkStoreDir>/knowledge-raw`.
+    const raw = new RawFileStorage(join(dirname(chunkStorePath), 'knowledge-raw'))
+    const store = new DomainStore(domain, chunkDb, raw)
+    try {
+      await store.recoverDocumentGenerations()
+      // Startup self-healing: drop documents a crashed import left behind
+      // (pure placeholders with no recoverable text), then reconcile stale
+      // chunkCount metadata. Resume candidates (rawText present, chunks
+      // partial) are re-indexed by the service after openStore returns.
+      const recovery = await store.recoverInterruptedImports(Date.now())
+      if (recovery.removed > 0) console.warn(`dsh-knowledge: removed ${recovery.removed} incomplete import(s) left by an interrupted run`)
+      await store.reconcileChunkCounts()
+      const orphaned = await store.reconcileOrphanRaws()
+      if (orphaned > 0) console.warn(`dsh-knowledge: removed ${orphaned} orphaned raw source file(s) no document referenced`)
+      const orphanChunks = await store.reconcileOrphanChunks()
+      if (orphanChunks > 0) console.warn(`dsh-knowledge: removed chunks left by ${orphanChunks} deleted document(s)`)
+    } catch (error) {
+      // Loaded state remains usable. Do not replace it with an empty store or
+      // continue destructive cleanup while metadata reconciliation is pending.
+      if (!isMetadataWriteFailure(error)) throw error
+      console.warn(`dsh-knowledge: startup metadata repair deferred: ${error instanceof Error ? error.message : String(error)}`)
+    }
+    return store
+  } catch (error) {
+    // Close what was already opened — a leaked SQLite handle also keeps the
+    // write lock and can block the file on Windows — then fail loudly.
+    try {
+      chunkDb?.close()
+    } catch {
+      // best effort: the original failure is the one worth reporting
+    }
+    await domain.close().catch(() => {})
+    throw new StorageUnavailableError(
+      `knowledge storage could not be opened: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    )
+  }
+}
+
+class DomainStore implements Store {
+  private readonly metadata = new MetadataWriter()
+  private documentWriteChain: Promise<void> = Promise.resolve()
+  constructor(
+    private readonly domain: Domain<typeof knowledgeDomainSpec>,
+    private readonly chunkDb: ChunkDatabase,
+    private readonly rawStore: RawFileStorage,
+  ) {}
+
+  private get bases() {
+    return this.domain.table(TABLES.bases)
+  }
+
+  private get documents() {
+    return this.domain.table(TABLES.documents)
+  }
+
+  listBases(): KnowledgeBase[] {
+    return [...this.bases.entries()].map(([, value]) => value)
+  }
+
+  getBase(id: string): KnowledgeBase | undefined {
+    return this.bases.get(id)
+  }
+
+  putBase(base: KnowledgeBase): Promise<void> {
+    return this.metadata.run(() => this.bases.put(base.id, base))
+  }
+
+  deleteBase(id: string): Promise<void> {
+    return this.writeDocuments(async () => {
+      await this.metadata.run(() => this.bases.delete(id))
+      for (const [, doc] of this.documents.entries()) {
+        if (doc.baseId === id) this.chunkDb.discardDocumentGenerations(doc.id)
+      }
+    })
+  }
+
+  listDocuments(baseId: string): KnowledgeDocument[] {
+    const pending = new Map(this.chunkDb.pendingDocumentGenerations().map(item => [item.document.id, item]))
+    return [...this.documents.entries()].map(([, value]) => {
+      const next = pending.get(value.id)
+      return next !== undefined && next.previousCreatedAt === value.createdAt && next.document.baseId === value.baseId
+        ? next.document : value
+    }).filter(doc => doc.baseId === baseId)
+  }
+
+  getDocument(id: string): KnowledgeDocument | undefined {
+    const current = this.documents.get(id)
+    if (current === undefined) return undefined
+    const pending = this.chunkDb.pendingDocumentGeneration(id)
+    return pending !== undefined && pending.previousCreatedAt === current.createdAt && pending.document.baseId === current.baseId
+      ? pending.document : current
+  }
+
+  putDocument(doc: KnowledgeDocument): Promise<void> {
+    return this.writeDocuments(async () => {
+      const pending = this.chunkDb.pendingDocumentGeneration(doc.id)
+      if (pending !== undefined && doc.processing?.revision !== pending.document.processing?.revision) {
+        throw new Error('stale_document_generation')
+      }
+      await this.metadata.run(() => this.documents.put(doc.id, doc))
+      if (pending !== undefined) this.chunkDb.acknowledgeDocumentGeneration(doc.id)
+    })
+  }
+
+  deleteDocument(id: string): Promise<void> {
+    return this.writeDocuments(async () => {
+      // Delete the authoritative object first. A crash before journal cleanup
+      // is safe: recovery never recreates a missing object.
+      await this.metadata.run(() => this.documents.delete(id))
+      this.chunkDb.discardDocumentGenerations(id)
+    })
+  }
+
+  private writeDocuments<T>(operation: () => Promise<T>): Promise<T> {
+    const next = this.documentWriteChain.then(operation)
+    this.documentWriteChain = next.then(() => {}, () => {})
+    return next
+  }
+
+  stageDocumentGeneration(doc: KnowledgeDocument, chunks: KnowledgeChunk[]): Promise<void> {
+    return this.writeDocuments(async () => {
+      const current = this.documents.get(doc.id)
+      if (current === undefined || current.baseId !== doc.baseId || current.createdAt !== doc.createdAt || this.getBase(doc.baseId) === undefined) {
+        throw new Error('document_generation_target_missing')
+      }
+      this.chunkDb.stageDocumentGeneration(doc, chunks)
+    })
+  }
+
+  getStagedDocumentGeneration(docId: string): StagedDocumentGeneration | undefined {
+    const current = this.getDocument(docId)
+    if (current === undefined || this.getBase(current.baseId) === undefined) return undefined
+    const staged = this.chunkDb.getStagedDocumentGeneration(docId)
+    return staged?.document.createdAt === current.createdAt && staged.document.baseId === current.baseId ? staged : undefined
+  }
+
+  discardStagedDocumentGeneration(docId: string): Promise<void> {
+    return this.writeDocuments(async () => { this.chunkDb.discardStagedDocumentGeneration(docId) })
+  }
+
+  commitDocumentGeneration(doc: KnowledgeDocument, chunks: KnowledgeChunk[]): Promise<void> {
+    return this.writeDocuments(async () => {
+      const current = this.documents.get(doc.id)
+      if (current === undefined || current.baseId !== doc.baseId || current.createdAt !== doc.createdAt || this.getBase(doc.baseId) === undefined) {
+        throw new Error('document_generation_target_missing')
+      }
+      this.chunkDb.stageDocumentGeneration(doc, chunks)
+      this.chunkDb.publishDocumentGeneration(doc, chunks, current.createdAt)
+      try {
+        await this.metadata.run(() => this.documents.put(doc.id, doc))
+        this.chunkDb.acknowledgeDocumentGeneration(doc.id)
+      } catch (error) { throw new DocumentGenerationCommitError({ cause: error }) }
+    })
+  }
+
+  recoverDocumentGenerations(): Promise<number> {
+    return this.writeDocuments(async () => {
+      let recovered = 0
+      for (const pending of this.chunkDb.pendingDocumentGenerations()) {
+        const doc = pending.document
+        const current = this.documents.get(doc.id)
+        if (current === undefined || this.getBase(doc.baseId) === undefined) {
+          await this.chunkDb.deleteChunks(doc.id, doc.baseId)
+          this.chunkDb.discardDocumentGenerations(doc.id)
+          continue
+        }
+        if (current.baseId !== doc.baseId || current.createdAt !== pending.previousCreatedAt) {
+          this.chunkDb.discardPublishedGeneration(doc)
+          continue
+        }
+        await this.metadata.run(() => this.documents.put(doc.id, doc))
+        this.chunkDb.acknowledgeDocumentGeneration(doc.id)
+        recovered += 1
+      }
+      for (const staged of this.chunkDb.stagedDocumentHeaders()) {
+        const current = this.documents.get(staged.id)
+        if (current === undefined || this.getBase(staged.baseId) === undefined
+          || current.baseId !== staged.baseId || current.createdAt !== staged.createdAt) this.chunkDb.discardDocumentGenerations(staged.id)
+      }
+      return recovered
+    })
+  }
+
+  listChunks(baseId: string): KnowledgeChunk[] {
+    return this.chunkDb.listChunks(baseId)
+  }
+
+  getChunk(id: string): KnowledgeChunk | undefined {
+    return this.chunkDb.getChunk(id)
+  }
+
+  listChunksByDoc(docId: string, limit?: number, offset?: number): KnowledgeChunk[] {
+    return this.chunkDb.listChunksByDoc(docId, limit, offset)
+  }
+
+  listChunksByIndexRange(docId: string, fromIdx: number, toIdx: number): KnowledgeChunk[] {
+    return this.chunkDb.listChunksByIndexRange(docId, fromIdx, toIdx)
+  }
+
+  listChunksByIndexRanges(ranges: readonly { docId: string; fromIdx: number; toIdx: number }[]): KnowledgeChunk[] {
+    return this.chunkDb.listChunksByIndexRanges(ranges)
+  }
+
+  async putChunks(chunks: KnowledgeChunk[]): Promise<void> {
+    this.chunkDb.putChunks(chunks)
+  }
+
+  async putChunkBatch(chunks: KnowledgeChunk[]): Promise<void> {
+    this.chunkDb.putChunkBatch(chunks)
+  }
+
+  async deleteChunks(docId: string, baseId?: string): Promise<void> {
+    // `await`, not a bare call: the lane batches its sweep and yields to the
+    // event loop, so returning early would let the caller delete the document
+    // row while chunk rows are still present (they keep matching search), and
+    // would turn any later failure into an unhandled rejection.
+    await this.chunkDb.deleteChunks(docId, baseId)
+  }
+
+  async deleteChunksByBase(baseId: string): Promise<void> {
+    await this.chunkDb.deleteChunksByBase(baseId)
+  }
+
+  listEmbeddingVectorsByHashes(hashes: readonly string[], embeddingModel: string): Map<string, number[]> {
+    return this.chunkDb.listEmbeddingVectorsByHashes(hashes, embeddingModel)
+  }
+
+  chunkCountsByDoc(baseIds: readonly string[]): Map<string, number> {
+    return this.chunkDb.chunkCountsByDoc(baseIds)
+  }
+
+  async recoverInterruptedImports(startedAt: number): Promise<{ removed: number; resume: string[] }> {
+    const withChunks = new Set<string>()
+    for (const base of this.listBases()) {
+      for (const docId of this.chunkDb.docChunkStatus(base.id).withChunks) withChunks.add(docId)
+    }
+    let removed = 0
+    const resume: string[] = []
+    for (const [id, doc] of [...this.documents.entries()]) {
+      // SQLite already published this generation. If its metadata acknowledgement
+      // was deferred, the old domain row may still say incomplete; it must not
+      // restart the import or mark the successfully published generation failed.
+      const pending = this.chunkDb.pendingDocumentGeneration(id)
+      if (pending !== undefined && pending.previousCreatedAt === doc.createdAt && pending.document.baseId === doc.baseId) continue
+      if (doc.sourceType === 'directory') continue
+      // Parsing failed in a completed import. Keep its raw source for an
+      // explicit retry, but never re-run a potentially paid processor at boot.
+      if (doc.errorCode === 'parse_failed') continue
+      // An `incomplete` document holds persisted rawText and (probably) some
+      // embedded batches — a crash mid-ingest. Recovery re-runs the embed:
+      // hash reuse (decision A4) re-embeds only the missing batches, so the
+      // resume is cheap. Distinguish it from a stale metadata count: the
+      // reconciliation pass that runs after this one would otherwise make the
+      // chunk count agree and hide the interrupted document forever.
+      if (doc.incomplete === true) {
+        if (doc.rawText !== undefined || doc.rawFilePath !== undefined) resume.push(id)
+        continue
+      }
+      if (withChunks.has(id)) {
+        // Chunks exist and the document is not marked incomplete: a completed
+        // document (possibly with a recording embedding failure) — keep it.
+        continue
+      }
+      // No chunks at all and no incomplete marker: a placeholder whose source
+      // was never persisted (crash before the raw write or before rawText
+      // landed) is unrecoverable; one that already holds rawText or a raw
+      // source file was interrupted mid-import — resume it.
+      if (doc.rawText !== undefined || doc.rawFilePath !== undefined) {
+        if ((doc.updatedAt ?? doc.createdAt) < startedAt) resume.push(id)
+        continue
+      }
+      // A completed document always has chunks (chunkText yields ≥1, even on
+      // embedding failure); an item with none that predates this process was
+      // left by a crash mid-import.
+      if ((doc.updatedAt ?? doc.createdAt) >= startedAt) continue
+      await this.chunkDb.deleteChunks(id)
+      await this.metadata.run(() => this.documents.delete(id))
+      removed += 1
+    }
+    return { removed, resume }
+  }
+
+  /**
+   * Write back the actual chunk count onto document records whose `chunkCount`
+   * drifted from the chunk store (historical stale metadata). Also the first
+   * domain write after a legacy-format upgrade, which trims the JSON unit file.
+   */
+  async reconcileChunkCounts(): Promise<void> {
+    const actual = this.chunkCountsByDoc(this.listBases().map(base => base.id))
+    for (const [id, doc] of [...this.documents.entries()]) {
+      if ((doc.chunkCount ?? 0) !== (actual.get(id) ?? 0)) {
+        await this.metadata.run(() => this.documents.put(id, { ...doc, chunkCount: actual.get(id) ?? 0 }))
+      }
+    }
+  }
+
+  docChunkStatus(baseId: string): { withChunks: Set<string>; missingEmbedding: Set<string> } {
+    return this.chunkDb.docChunkStatus(baseId)
+  }
+
+  async reconcileOrphanRaws(): Promise<number> {
+    const referenced = new Set<string>()
+    for (const base of this.listBases()) {
+      for (const doc of this.listDocuments(base.id)) {
+        if (doc.rawFilePath !== undefined) referenced.add(doc.rawFilePath)
+        const staged = this.getStagedDocumentGeneration(doc.id)
+        if (staged?.document.rawFilePath !== undefined) referenced.add(staged.document.rawFilePath)
+      }
+    }
+    let removed = 0
+    for (const rel of await this.rawStore.listAll()) {
+      if (!referenced.has(rel)) {
+        await this.rawStore.delete(rel)
+        removed += 1
+      }
+    }
+    return removed
+  }
+
+  chunkStats(baseIds: readonly string[]): ChunkStats {
+    return this.chunkDb.chunkStats(baseIds)
+  }
+
+  async reconcileOrphanChunks(): Promise<number> {
+    const known = new Set<string>()
+    for (const base of this.listBases()) {
+      for (const doc of this.listDocuments(base.id)) known.add(doc.id)
+    }
+    let removed = 0
+    for (const docId of this.chunkDb.docIdsWithChunks()) {
+      if (known.has(docId)) continue
+      // deleteChunks batches the sweep, fires the FTS tombstones, and drops the
+      // doc from the vector cache — the same path a normal delete takes.
+      await this.chunkDb.deleteChunks(docId)
+      removed += 1
+    }
+    return removed
+  }
+
+  get retrievalLane(): RetrievalLane {
+    return this.chunkDb
+  }
+
+  get raw(): RawFileStore {
+    return this.rawStore
+  }
+
+  reclaimSpace(): { vacuumed: boolean; reclaimedBytes: number } {
+    return this.chunkDb.reclaimSpace()
+  }
+
+  getConfigOverrides(): ConfigOverrides {
+    return this.readGlobal().overrides
+  }
+
+  async setConfigOverrides(overrides: ConfigOverrides): Promise<void> {
+    await this.writeGlobal({ overrides })
+  }
+
+  getGroups(): string[] {
+    return this.readGlobal().groups
+  }
+
+  async setGroups(groups: string[]): Promise<void> {
+    await this.writeGlobal({ groups })
+  }
+
+  getEnabled(): boolean {
+    return this.readGlobal().enabled
+  }
+
+  async setEnabled(enabled: boolean): Promise<void> {
+    await this.writeGlobal({ enabled })
+  }
+
+  getEnabledBaseIds(): string[] {
+    return this.readGlobal().enabledBaseIds
+  }
+
+  async setEnabledBaseIds(ids: string[]): Promise<void> {
+    await this.writeGlobal({ enabledBaseIds: ids })
+  }
+
+  private readGlobal(): { overrides: ConfigOverrides; groups: string[]; enabled: boolean; enabledBaseIds: string[] } {
+    const global = this.domain.global.get() as { overrides?: ConfigOverrides; groups?: string[]; enabled?: boolean; enabledBaseIds?: string[] }
+    return {
+      overrides: global.overrides ?? {},
+      groups: global.groups ?? [],
+      enabled: global.enabled ?? true,
+      enabledBaseIds: global.enabledBaseIds ?? [],
+    }
+  }
+
+  /** Serialize read-modify-write over the single global slot. `global.set`
+   *  overwrites the record, so two concurrent settings writes both read
+   *  revision n and the later one drops the earlier field (a freshly selected
+   *  base list disappearing because another request wrote the previous list back
+   *  with its own patch). */
+  private globalWriteChain: Promise<void> = Promise.resolve()
+
+  private writeGlobal(patch: { overrides?: ConfigOverrides; groups?: string[]; enabled?: boolean; enabledBaseIds?: string[] }): Promise<void> {
+    const next = this.globalWriteChain.then(async () => {
+      const current = this.readGlobal()
+      const next = { ...current, ...patch, overrides: { ...current.overrides, ...patch.overrides } }
+      await this.metadata.run(() => (this.domain.global as { set(value: unknown): Promise<void> }).set(next))
+    })
+    // Keep the chain usable after a failure: one rejected write must not poison
+    // every later settings write.
+    this.globalWriteChain = next.catch(() => {})
+    return next
+  }
+
+  async close(): Promise<void> {
+    await this.documentWriteChain
+    await this.globalWriteChain
+    await this.metadata.drain()
+    this.chunkDb.close()
+    await this.domain.close()
+  }
+}
+
+class MemoryStore implements Store {
+  private readonly bases = new Map<string, KnowledgeBase>()
+  private readonly documents = new Map<string, KnowledgeDocument>()
+  private readonly chunks = new Map<string, KnowledgeChunk>()
+  private readonly staged = new Map<string, StagedDocumentGeneration>()
+  private overrides: ConfigOverrides = {}
+  private groups: string[] = []
+  private enabled = true
+  private enabledBaseIds: string[] = []
+
+  listBases(): KnowledgeBase[] {
+    return [...this.bases.values()]
+  }
+
+  getBase(id: string): KnowledgeBase | undefined {
+    return this.bases.get(id)
+  }
+
+  async putBase(base: KnowledgeBase): Promise<void> {
+    this.bases.set(base.id, base)
+  }
+
+  async deleteBase(id: string): Promise<void> {
+    this.bases.delete(id)
+    for (const [docId, generation] of this.staged) if (generation.document.baseId === id) this.staged.delete(docId)
+  }
+
+  listDocuments(baseId: string): KnowledgeDocument[] {
+    return [...this.documents.values()].filter(doc => doc.baseId === baseId)
+  }
+
+  getDocument(id: string): KnowledgeDocument | undefined {
+    return this.documents.get(id)
+  }
+
+  async putDocument(doc: KnowledgeDocument): Promise<void> {
+    this.documents.set(doc.id, doc)
+  }
+
+  async deleteDocument(id: string): Promise<void> {
+    this.documents.delete(id)
+    this.staged.delete(id)
+  }
+
+  async stageDocumentGeneration(doc: KnowledgeDocument, chunks: KnowledgeChunk[]): Promise<void> {
+    this.assertGenerationTarget(doc)
+    validateDocumentGeneration(doc, chunks)
+    const previous = this.staged.get(doc.id)
+    const same = previous?.document.processing?.revision === doc.processing?.revision
+      && (doc.processing !== undefined || previous?.document.updatedAt === doc.updatedAt)
+    const byId = new Map((same ? previous?.chunks ?? [] : []).map(chunk => [chunk.id, chunk]))
+    for (const chunk of chunks) byId.set(chunk.id, chunk)
+    this.staged.set(doc.id, { document: doc, chunks: [...byId.values()].sort((a, b) => a.index - b.index) })
+  }
+
+  getStagedDocumentGeneration(docId: string): StagedDocumentGeneration | undefined {
+    const doc = this.documents.get(docId)
+    return doc !== undefined && this.bases.has(doc.baseId) ? this.staged.get(docId) : undefined
+  }
+
+  async commitDocumentGeneration(doc: KnowledgeDocument, chunks: KnowledgeChunk[]): Promise<void> {
+    this.assertGenerationTarget(doc)
+    validateDocumentGeneration(doc, chunks)
+    if (doc.chunkCount !== chunks.length) throw new Error('document generation chunk count mismatch')
+    // No await between replacing rows and the document: one observable write.
+    for (const [id, chunk] of this.chunks) if (chunk.docId === doc.id && chunk.baseId === doc.baseId) this.chunks.delete(id)
+    for (const chunk of chunks) this.chunks.set(chunk.id, chunk)
+    this.documents.set(doc.id, doc)
+    this.staged.delete(doc.id)
+  }
+
+  private assertGenerationTarget(doc: KnowledgeDocument): void {
+    const current = this.documents.get(doc.id)
+    if (current === undefined || current.baseId !== doc.baseId || current.createdAt !== doc.createdAt || !this.bases.has(doc.baseId)) {
+      throw new Error('document_generation_target_missing')
+    }
+  }
+
+  async recoverDocumentGenerations(): Promise<number> { return 0 }
+  async discardStagedDocumentGeneration(docId: string): Promise<void> { this.staged.delete(docId) }
+
+  listChunks(baseId: string): KnowledgeChunk[] {
+    return [...this.chunks.values()].filter(chunk => chunk.baseId === baseId)
+  }
+
+  getChunk(id: string): KnowledgeChunk | undefined {
+    return this.chunks.get(id)
+  }
+
+  listChunksByDoc(docId: string, limit?: number, offset?: number): KnowledgeChunk[] {
+    const chunks = [...this.chunks.values()].filter(chunk => chunk.docId === docId).sort((a, b) => a.index - b.index)
+    const start = offset ?? 0
+    const count = limit ?? chunks.length
+    return chunks.slice(start, start + count)
+  }
+
+  listChunksByIndexRange(docId: string, fromIdx: number, toIdx: number): KnowledgeChunk[] {
+    return [...this.chunks.values()]
+      .filter(chunk => chunk.docId === docId && chunk.index >= fromIdx && chunk.index <= toIdx)
+      .sort((a, b) => a.index - b.index)
+  }
+
+  listChunksByIndexRanges(ranges: readonly { docId: string; fromIdx: number; toIdx: number }[]): KnowledgeChunk[] {
+    const seen = new Set<string>()
+    const chunks: KnowledgeChunk[] = []
+    for (const range of ranges) {
+      for (const chunk of this.listChunksByIndexRange(range.docId, range.fromIdx, range.toIdx)) {
+        if (seen.has(chunk.id)) continue
+        seen.add(chunk.id)
+        chunks.push(chunk)
+      }
+    }
+    return chunks.sort((a, b) => a.docId.localeCompare(b.docId) || a.index - b.index)
+  }
+
+  async putChunks(chunks: KnowledgeChunk[]): Promise<void> {
+    // Mirror the SQLite store's replace semantics: drop the document's old
+    // rows, then insert the new bundle (a reindex must not leave stale chunks).
+    const docId = chunks.length > 0 ? chunks[0].docId : undefined
+    if (docId !== undefined) await this.deleteChunks(docId)
+    for (const chunk of chunks) this.chunks.set(chunk.id, chunk)
+  }
+
+  async putChunkBatch(chunks: KnowledgeChunk[]): Promise<void> {
+    for (const chunk of chunks) this.chunks.set(chunk.id, chunk)
+  }
+
+  async deleteChunks(docId: string, baseId?: string): Promise<void> {
+    for (const [id, chunk] of this.chunks) {
+      if (chunk.docId === docId && (baseId === undefined || chunk.baseId === baseId)) this.chunks.delete(id)
+    }
+  }
+
+  async deleteChunksByBase(baseId: string): Promise<void> {
+    for (const [id, chunk] of this.chunks) {
+      if (chunk.baseId === baseId) this.chunks.delete(id)
+    }
+  }
+
+  listEmbeddingVectorsByHashes(hashes: readonly string[], embeddingModel: string): Map<string, number[]> {
+    const wanted = new Set(hashes)
+    const vectors = new Map<string, number[]>()
+    for (const chunk of [...this.chunks.values(), ...[...this.staged.values()].flatMap(item => item.chunks)]) {
+      if (chunk.embedding === undefined || chunk.embeddingModel !== embeddingModel) continue
+      const hash = hashEmbeddingText(searchTextOf(chunk))
+      if (wanted.has(hash)) vectors.set(hash, chunk.embedding)
+    }
+    return vectors
+  }
+
+  chunkCountsByDoc(baseIds: readonly string[]): Map<string, number> {
+    const scope = new Set(baseIds)
+    const counts = new Map<string, number>()
+    for (const chunk of this.chunks.values()) {
+      if (!scope.has(chunk.baseId)) continue
+      counts.set(chunk.docId, (counts.get(chunk.docId) ?? 0) + 1)
+    }
+    return counts
+  }
+
+  async recoverInterruptedImports(startedAt: number): Promise<{ removed: number; resume: string[] }> {
+    const withChunks = new Set<string>()
+    for (const chunk of this.chunks.values()) withChunks.add(chunk.docId)
+    let removed = 0
+    const resume: string[] = []
+    for (const [id, doc] of [...this.documents.entries()]) {
+      if (doc.sourceType === 'directory') continue
+      if (doc.errorCode === 'parse_failed') continue
+      if (doc.incomplete === true) {
+        if (doc.rawText !== undefined || doc.rawFilePath !== undefined) resume.push(id)
+        continue
+      }
+      if (withChunks.has(id)) continue
+      if (doc.rawText !== undefined || doc.rawFilePath !== undefined) {
+        if ((doc.updatedAt ?? doc.createdAt) < startedAt) resume.push(id)
+        continue
+      }
+      if ((doc.updatedAt ?? doc.createdAt) >= startedAt) continue
+      this.documents.delete(id)
+      removed += 1
+    }
+    return { removed, resume }
+  }
+
+  async reconcileOrphanRaws(): Promise<number> {
+    // In-memory store keeps no raw files on disk.
+    return 0
+  }
+
+  async reconcileOrphanChunks(): Promise<number> {
+    // The in-memory store deletes chunks with their document in one op.
+    return 0
+  }
+
+  docChunkStatus(baseId: string): { withChunks: Set<string>; missingEmbedding: Set<string> } {
+    const withChunks = new Set<string>()
+    const missingEmbedding = new Set<string>()
+    for (const chunk of this.chunks.values()) {
+      if (chunk.baseId !== baseId) continue
+      withChunks.add(chunk.docId)
+      if (chunk.embedding === undefined) missingEmbedding.add(chunk.docId)
+    }
+    return { withChunks, missingEmbedding }
+  }
+
+  chunkStats(baseIds: readonly string[]): ChunkStats {
+    const scope = new Set(baseIds)
+    const modelCounts = new Map<string, number>()
+    let count = 0
+    let embedded = false
+    let dimensions: number | undefined
+    for (const chunk of this.chunks.values()) {
+      if (!scope.has(chunk.baseId)) continue
+      count += 1
+      if (chunk.embedding === undefined) continue
+      embedded = true
+      if (dimensions === undefined) dimensions = chunk.embedding.length
+      if (chunk.embeddingModel !== undefined) {
+        const key = `${chunk.baseId}\u0000${chunk.embeddingModel}`
+        modelCounts.set(key, (modelCounts.get(key) ?? 0) + 1)
+      }
+    }
+    return {
+      count,
+      embedded,
+      ...(dimensions !== undefined ? { dimensions } : {}),
+      embeddingModelCounts: [...modelCounts.entries()].map(([key, countValue]) => {
+        const [baseId, model] = key.split('\u0000')
+        return { baseId, model, count: countValue }
+      }),
+    }
+  }
+
+  getConfigOverrides(): ConfigOverrides {
+    return { ...this.overrides }
+  }
+
+  async setConfigOverrides(overrides: ConfigOverrides): Promise<void> {
+    this.overrides = { ...this.overrides, ...overrides }
+  }
+
+  getGroups(): string[] {
+    return [...this.groups]
+  }
+
+  async setGroups(groups: string[]): Promise<void> {
+    this.groups = [...groups]
+  }
+
+  getEnabled(): boolean {
+    return this.enabled
+  }
+
+  async setEnabled(enabled: boolean): Promise<void> {
+    this.enabled = enabled
+  }
+
+  getEnabledBaseIds(): string[] {
+    return [...this.enabledBaseIds]
+  }
+
+  async setEnabledBaseIds(ids: string[]): Promise<void> {
+    this.enabledBaseIds = [...ids]
+  }
+
+  async close(): Promise<void> {}
+}

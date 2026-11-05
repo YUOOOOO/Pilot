@@ -1,0 +1,670 @@
+/**
+ * Public data vocabulary for dsh-knowledge. Every value here is plain,
+ * JSON-serializable data — never a Cordis/DSH live object — so it can cross
+ * the HTTP boundary and be stored durably.
+ * @module dsh-knowledge/knowledge/types
+ */
+
+/** Supported embedding backends. `local` runs in-process (transformers.js); `none` keeps the base lexical-only. */
+export type EmbeddingProvider = 'openai' | 'ollama' | 'local' | 'none'
+
+import type { DocumentProcessor, DocumentProcessingInfo, DocumentSourceSpan, MineruTier } from './processing-types.js'
+export type * from './processing-types.js'
+
+/** Search strategy. `auto` picks hybrid when vectors exist, else lexical. */
+export type SearchMode = 'auto' | 'hybrid' | 'vector' | 'lexical'
+
+/** Meaning of the normalized `SearchResult` / `SearchHit` score. */
+export type SearchScoreKind = 'lexical_relevance' | 'vector_similarity' | 'rrf' | 'rerank'
+
+/** Execution report for one retrieval lane.  This describes the work that
+ * actually happened; it is deliberately independent of which hits survived
+ * the final Top-K cut. */
+export interface RetrievalLaneStatus {
+  readonly attempted: boolean
+  readonly succeeded: boolean
+  readonly returnedCount: number
+  readonly errorCode?: string
+}
+
+/** Explicit retrieval execution diagnostics.  Added in 0.3.10 so callers no
+ * longer have to infer hybrid execution from score fields on individual hits. */
+export interface RetrievalStatus {
+  readonly requestedMode: SearchMode
+  readonly effectiveMode: SearchMode
+  readonly lexical: RetrievalLaneStatus
+  readonly vector: RetrievalLaneStatus
+}
+
+/** Per-base configuration overrides (Cherry Studio: every base picks its own model). */
+export interface BaseConfig {
+  readonly embeddingProvider?: EmbeddingProvider
+  readonly embeddingBaseUrl?: string
+  readonly embeddingModel?: string
+  readonly embeddingApiKey?: string
+  readonly rerankModel?: string
+  readonly rerankBaseUrl?: string
+  readonly rerankApiKey?: string
+  /** Total local rerank budget, including queue wait (10–300 seconds). */
+  readonly localRerankTimeoutMs?: number
+  readonly smartChunk?: boolean
+  readonly chunkSeparator?: string
+  readonly chunkSize?: number
+  readonly chunkOverlap?: number
+  readonly topK?: number
+  readonly searchMode?: SearchMode
+  readonly similarityThreshold?: number
+  readonly mmrDiversity?: number
+  /** Relative weight of the vector lane in RRF hybrid fusion (0.1–5, 1 = balanced). */
+  readonly rrfVectorWeight?: number
+  readonly embeddingBatchSize?: number
+  /** How many neighbouring chunks (±) to attach to each search hit as context (0–3, 0 = off). */
+  readonly siblingChunks?: number
+  readonly documentProcessorProvider?: DocumentProcessor
+  readonly mineruApiKey?: string
+  readonly mineruApiHost?: string
+  readonly mineruLocalUrl?: string
+  readonly mineruLocalApiKey?: string
+  readonly mineruTier?: MineruTier
+  readonly documentProcessingTimeoutMs?: number
+  readonly structuredChunking?: boolean
+  readonly semanticChunk?: boolean
+  readonly semanticChunkThreshold?: number
+  readonly chunkTokenLimit?: number
+  readonly conflictStrategy?: 'keep' | 'replace' | 'rename'
+  readonly urlRefreshHours?: number
+  readonly imageCaptionProvider?: 'off' | 'openai' | 'ollama'
+  readonly imageCaptionModel?: string
+  readonly imageCaptionBaseUrl?: string
+  readonly imageCaptionApiKey?: string
+  /** Whether this base participates in proactive retrieval. */
+  readonly autoRetrieve?: boolean
+  /** Include this base in the optional system-prompt base list. */
+  readonly injectUsagePrompt?: boolean
+  /**
+   * Auto-retrieve weight (0–5, default 3): how many chunks of THIS base may
+   * enter a proactive-retrieval injection. 0 excludes the base entirely;
+   * the per-base seat cap keeps one library from monopolizing the context.
+   */
+  readonly autoRetrieveWeight?: number
+  /** Whether interrupted imports in this base resume when the service starts. */
+  readonly resumeInterruptedOnStartup?: boolean
+}
+
+/** One knowledge base (a namespace of documents). */
+export interface KnowledgeBase {
+  readonly id: string
+  readonly name: string
+  readonly description: string
+  /** Knowledge base group (Cherry Studio's 分组), empty = ungrouped. */
+  readonly group?: string
+  /** Per-base config overrides, merged over the global config for this base. */
+  readonly config?: BaseConfig
+  readonly createdAt: number
+  readonly updatedAt: number
+}
+
+/** Where a document's text came from. `directory` is a container of child items. */
+export type DocumentSourceType = 'text' | 'file' | 'url' | 'directory'
+
+/** One concrete mutation (or retained item) produced while synchronizing a
+ * tracked directory source with its live filesystem tree. */
+export type DirectorySyncAction = 'created' | 'updated' | 'unchanged' | 'deleted' | 'failed'
+
+/** An itemized, path-relative outcome of a directory synchronization. */
+export interface DirectorySyncItem {
+  /** Normalized path relative to the directory root; `.` denotes the root. */
+  readonly relativePath: string
+  readonly kind: 'file' | 'directory'
+  readonly documentId?: string
+  readonly action: DirectorySyncAction
+  readonly error?: { readonly code: string; readonly message: string }
+}
+
+/** Truthful aggregate result for initial directory import and later syncs. */
+export interface DirectorySyncResult {
+  readonly sourceId: string
+  readonly status: 'synced' | 'unchanged' | 'partial'
+  readonly created: number
+  readonly updated: number
+  readonly unchanged: number
+  readonly deleted: number
+  readonly failed: number
+  readonly items: readonly DirectorySyncItem[]
+}
+
+/** Additive result returned by the explicit directory-tree import endpoint. */
+export interface DirectoryImportResult {
+  /** Legacy file count retained for 0.3.x callers. */
+  readonly imported: number
+  /** Legacy directory count retained for 0.3.x callers. */
+  readonly directories: number
+  /** Legacy per-file error list retained for 0.3.x callers. */
+  readonly errors: readonly { readonly file: string; readonly error: string }[]
+  readonly sourceId: string
+  readonly mode: 'created' | 'synced'
+  readonly sync: DirectorySyncResult
+}
+
+/** Additive directory details returned by `importFromPath`. */
+export interface PathImportResult {
+  readonly kind: 'directory' | 'file'
+  readonly imported: number
+  readonly errors: readonly { readonly file: string; readonly error: string }[]
+  readonly directories?: number
+  readonly sourceId?: string
+  readonly mode?: 'created' | 'synced'
+  readonly sync?: DirectorySyncResult
+}
+
+/** Additive details for a batch reindex request. */
+export interface ReindexDocumentsResult {
+  readonly reindexed: number
+  readonly skipped: number
+  readonly failed: number
+  readonly items: readonly DirectorySyncItem[]
+}
+
+/** A document after reindexing. Directory containers additionally carry the
+ * synchronization report that produced their refreshed state. */
+export type ReindexDocumentResult = KnowledgeDocument & {
+  readonly sync?: DirectorySyncResult
+}
+
+/** The scope that would be removed by a document delete operation. */
+export interface DeleteImpact {
+  readonly documentId: string
+  readonly baseId: string
+  readonly directories: number
+  readonly files: number
+  readonly chunks: number
+  readonly rawSnapshots: number
+  /** True only when an explicit recursive confirmation is required. */
+  readonly requiresRecursive: boolean
+}
+
+/** One imported document inside a knowledge base. */
+export interface KnowledgeDocument {
+  readonly processing?: DocumentProcessingInfo
+  readonly id: string
+  readonly baseId: string
+  readonly title: string
+  readonly sourceType: DocumentSourceType
+  readonly fileName?: string
+  readonly mimeType?: string
+  /** Origin URL for sourceType 'url'. */
+  readonly url?: string
+  /** Parent directory id, when this item lives inside a `directory` container. */
+  readonly parentDirectoryId?: string
+  /** Absolute path of the source directory this container was imported from
+   *  (Cherry's pathStorage): reindexing the container rescans the path and
+   *  picks up new/removed files. Absent on legacy/created containers. */
+  readonly sourcePath?: string
+  /** SHA-256 of the source text, for duplicate detection. */
+  readonly contentHash?: string
+  /**
+   * Base-relative path of the document's original source bytes in the raw
+   * store (`<baseId>/<docId><ext>`, under `<chunkStoreDir>/knowledge-raw`).
+   * Present for file documents whose bytes were persisted at import; reindex
+   * re-reads and re-parses this source instead of only reusing rawText.
+   */
+  readonly rawFilePath?: string
+  /** Original source text, retained so the document can be re-chunked. */
+  readonly rawText?: string
+  /** Raw character count of the source text (before chunking). */
+  readonly charCount: number
+  /** Estimated token count of the source text. */
+  readonly tokenCount?: number
+  /** Number of chunks produced at import time. */
+  readonly chunkCount: number
+  /**
+   * True while the document is being indexed (placeholder → mid-embedding).
+   * A crash leaves `incomplete: true` + rawText, so startup recovery can
+   * resume the interrupted embed instead of dropping the document.
+   */
+  readonly incomplete?: boolean
+  /** Reason embedding failed at import/reindex time, when it degraded to lexical-only. */
+  readonly embeddingError?: string
+  /**
+   * Stable failure class for {@link embeddingError} (Cherry's error-code
+   * posture): the UI localizes known codes and passes unknown values through.
+   * `interrupted` — import aborted by a shutdown; `dimension_mismatch` — the
+   * model returned a vector width different from the stored one (action:
+   * rebuild the base with the new model); `parse_failed` — the source could
+   * not be parsed; `embedding_provider` — the embedding API/model failed.
+   */
+  readonly errorCode?: 'interrupted' | 'dimension_mismatch' | 'parse_failed' | 'embedding_provider'
+  readonly createdAt: number
+  readonly updatedAt?: number
+}
+
+/** One chunk of a document, with its optional embedding vector. */
+export interface KnowledgeChunk {
+  readonly sourceSpans?: readonly DocumentSourceSpan[]
+  readonly processingRevision?: string
+  readonly id: string
+  readonly docId: string
+  readonly baseId: string
+  readonly index: number
+  /** The chunk's own text (no injected context). */
+  readonly text: string
+  /** Markdown heading path introducing this chunk, e.g. "Section > Sub". */
+  readonly heading?: string
+  /** Retrieval context injected for embedding/search (title + heading). */
+  readonly context?: string
+  /** L2-normalized embedding, when one was produced at import time. */
+  readonly embedding?: number[]
+  /** Embedding source key (`provider:model`) that produced {@link embedding}. */
+  readonly embeddingModel?: string
+}
+
+/** The resolved, user-visible knowledge configuration. */
+export interface KnowledgeConfig {
+  readonly embeddingProvider: EmbeddingProvider
+  readonly embeddingBaseUrl: string
+  readonly embeddingModel: string
+  readonly embeddingApiKey: string
+  /** Optional rerank model (empty = disabled), Cherry Studio style. */
+  readonly rerankModel: string
+  readonly rerankBaseUrl: string
+  readonly rerankApiKey: string
+  /** Total local rerank budget, including queue wait (10–300 seconds). */
+  readonly localRerankTimeoutMs: number
+  /** Heading-aware chunking (Cherry Studio's 智能分段); off = delimiter-only. */
+  readonly smartChunk: boolean
+  /** Chunk boundary separator when smartChunk is off. */
+  readonly chunkSeparator: string
+  readonly chunkSize: number
+  readonly chunkOverlap: number
+  readonly topK: number
+  readonly searchMode: SearchMode
+  readonly similarityThreshold: number
+  readonly mmrDiversity: number
+  /** Relative weight of the vector lane in RRF hybrid fusion (0.1–5, 1 = balanced). */
+  readonly rrfVectorWeight: number
+  readonly embeddingBatchSize: number
+  /** How many neighbouring chunks (±) to attach to each search hit as context (0–3, 0 = off). */
+  readonly siblingChunks: number
+  /** Hugging Face endpoint override (mirror); empty = official hub / `HF_ENDPOINT` env. */
+  readonly hfEndpoint: string
+  readonly mineruPythonIndexUrl?: string
+  /** Document processor: `builtin` (local parsers + OCR) or `mineru` (remote MinerU API). */
+  readonly documentProcessorProvider: DocumentProcessor
+  readonly mineruLocalUrl?: string
+  readonly mineruLocalApiKey?: string
+  readonly mineruTier?: MineruTier
+  readonly documentProcessingTimeoutMs?: number
+  readonly structuredChunking?: boolean
+  /** MinerU API key (required when provider is `mineru`). */
+  readonly mineruApiKey: string
+  /** MinerU API host; empty = https://mineru.net */
+  readonly mineruApiHost: string
+  /** Semantic chunking: embed paragraph-level segments and merge similar adjacent ones. */
+  readonly semanticChunk: boolean
+  /** Cosine threshold below which adjacent segments start a new chunk (0–1). */
+  readonly semanticChunkThreshold: number
+  /** Token budget per chunk (0 = off); oversized chunks split at preferred boundaries. */
+  readonly chunkTokenLimit: number
+  /** Same-name conflict strategy for file imports: keep / replace / rename (Cherry's default). */
+  readonly conflictStrategy: 'keep' | 'replace' | 'rename'
+  /** Auto-refresh URL documents older than this many hours (0 = off). */
+  readonly urlRefreshHours: number
+  /** Local-model cache root; empty = `<DSH_HOME>/cache/dsh-knowledge/local-models`. */
+  readonly localModelCacheDir: string
+  /** Image/table captioning: `off` / `openai` (vision chat API) / `ollama` (local VLM). */
+  readonly imageCaptionProvider: 'off' | 'openai' | 'ollama'
+  /** Captioning model id (OpenAI-compatible vision model, or an Ollama VLM like llava / qwen2.5vl). */
+  readonly imageCaptionModel: string
+  /** Captioning API root; empty = the embedding base URL (openai) or http://127.0.0.1:11434 (ollama). */
+  readonly imageCaptionBaseUrl: string
+  /** Captioning API key (openai provider). */
+  readonly imageCaptionApiKey: string
+  /** Re-run interrupted imports on startup (off = mark them failed, Cherry's posture). */
+  readonly resumeInterruptedOnStartup: boolean
+  /** Proactive auto-retrieval on every user message. */
+  readonly autoRetrieve: boolean
+  /** Include the available-base list in the system prompt (default true). */
+  readonly injectUsagePrompt?: boolean
+  /** Auto-retrieve seat cap per base (0–5, 0 = excluded; see BaseConfig). */
+  readonly autoRetrieveWeight: number
+  /** Local-model worker idle timeout in ms (0 = never release; see Config). */
+  readonly localWorkerIdleTimeoutMs: number
+}
+
+/** One file of a batch import (content optional for the detect round). */
+export interface AddFilesItem {
+  readonly fileName: string
+  readonly mimeType?: string
+  readonly contentBase64?: string
+}
+
+/** Batch file add with Cherry's server-authoritative conflict detection. */
+export interface AddFilesRequest {
+  readonly baseId: string
+  readonly files: readonly AddFilesItem[]
+  readonly conflict?: 'detect' | 'rename' | 'replace'
+  readonly parentDirectoryId?: string
+}
+
+export type AddFilesResult =
+  | { status: 'conflicts'; conflicts: string[] }
+  | { status: 'clean' }
+  | {
+      status: 'added'
+      accepted: Array<{ id: string; title: string; fileName: string; skipped?: boolean }>
+    }
+
+/** One bounded excerpt from a canonical document chunk. Character offsets are
+ * relative to {@link KnowledgeChunk.text}, never to the original source file. */
+export interface ContextChunkExcerpt {
+  /** Ranges relative to this excerpt's text, clipped from canonical chunk spans. */
+  readonly sourceSpans?: readonly DocumentSourceSpan[]
+  readonly chunkId: string
+  readonly index: number
+  readonly heading?: string
+  readonly text: string
+  /** Inclusive UTF-16 offset in the canonical chunk text. */
+  readonly textStart: number
+  /** Exclusive UTF-16 offset in the canonical chunk text. */
+  readonly textEnd: number
+  readonly truncatedStart: boolean
+  readonly truncatedEnd: boolean
+}
+
+/** Ordered, token-bounded evidence around one search/read anchor. */
+export interface ContextWindow {
+  readonly anchorChunkId: string
+  readonly anchorIndex: number
+  readonly before: ContextChunkExcerpt[]
+  readonly anchor: ContextChunkExcerpt
+  readonly after: ContextChunkExcerpt[]
+  readonly estimatedTokens: number
+  readonly hasMoreBefore: boolean
+  readonly hasMoreAfter: boolean
+}
+
+/** One ranked search result. */
+export interface SearchHit {
+  readonly sourceSpans?: readonly DocumentSourceSpan[]
+  readonly processingRevision?: string
+  readonly chunkId: string
+  readonly docId: string
+  readonly baseId: string
+  readonly documentTitle: string
+  readonly heading?: string
+  readonly index: number
+  readonly text: string
+  /** Ordered, bounded evidence around this hit. New in 0.3.8; optional so
+   * clients compiled against 0.3.7 payloads remain compatible. */
+  readonly contextWindow?: ContextWindow
+  /** Surrounding chunks (±`siblingChunks`) of the hit, concatenated as
+   *  context — the full paragraph the hit sits in. Empty when the document
+   *  has no neighbours or sibling context is disabled.
+   *  @deprecated Prefer {@link contextWindow}; retained throughout 0.3.x. */
+  readonly siblingContext?: string
+  readonly score: number
+  readonly vectorScore?: number
+  readonly lexicalScore?: number
+}
+
+/** Summary of one document, for listing UIs. */
+export interface DocumentSummary {
+  readonly processing?: DocumentProcessingInfo
+  readonly id: string
+  readonly baseId: string
+  readonly title: string
+  readonly sourceType: DocumentSourceType
+  readonly fileName?: string
+  readonly url?: string
+  readonly parentDirectoryId?: string
+  /** Absolute live path for locally tracked files and directory containers.
+   * Administrative UI/API only; never included in model-facing search hits. */
+  readonly sourcePath?: string
+  readonly charCount: number
+  readonly tokenCount?: number
+  readonly chunkCount: number
+  /** For `directory` items: number of direct child items. */
+  readonly childCount?: number
+  /** True when every chunk carries a vector (false for lexical-only content). */
+  readonly embedded: boolean
+  /** Reason embedding failed, when the document is lexical-only due to an error. */
+  readonly embeddingError?: string
+  /** Stable failure class for {@link embeddingError} (UI localizes known codes). */
+  readonly errorCode?: 'interrupted' | 'dimension_mismatch' | 'parse_failed' | 'embedding_provider'
+  /** Live indexing state: `pending` (not yet embedded), `processing` (embedding now),
+   *  `completed` (vectors ready), or `failed` (embedding errored). */
+  readonly status?: 'pending' | 'processing' | 'completed' | 'failed'
+  /** 0–100 embedding progress while `status === 'processing'`. */
+  readonly indexingProgress?: number
+  /** Current processing phase when `status === 'processing'`. */
+  readonly indexingPhase?: 'parsing' | 'embedding'
+  readonly createdAt: number
+  readonly updatedAt?: number
+}
+
+/** One origin line for a base: where its content came from (shown under the
+ *  base name in the detail header — path for directories/files, link for URLs,
+ *  "node" for manually added text). */
+export interface BaseSourceInfo {
+  /** Top-level document/container that owns this source. */
+  readonly sourceId: string
+  readonly kind: DocumentSourceType
+  /** Directory path / file name / URL / 'node'. */
+  readonly text: string
+  /** Absolute tracked path when this source can be repointed. */
+  readonly sourcePath?: string
+}
+
+/** Summary of one knowledge base, for listing UIs. */
+export interface BaseSummary {
+  readonly id: string
+  readonly name: string
+  readonly description: string
+  readonly group?: string
+  readonly documentCount: number
+  /** Documents with a persisted raw source copy (actually imported & stored). */
+  readonly storedDocCount: number
+  readonly chunkCount: number
+  readonly charCount: number
+  readonly tokenCount: number
+  readonly config?: BaseConfig
+  /** Top-level sources of the base's content, for display (bounded). */
+  readonly sourceInfo?: BaseSourceInfo[]
+  readonly createdAt: number
+  readonly updatedAt: number
+}
+
+/** Aggregate statistics for one base (or all bases). */
+export interface BaseStats {
+  readonly baseId?: string
+  readonly documentCount: number
+  /** Documents with a persisted raw source copy (actually imported & stored). */
+  readonly storedDocCount: number
+  readonly chunkCount: number
+  readonly charCount: number
+  readonly tokenCount: number
+  /** Whether the base's chunks carry embeddings. */
+  readonly embedded: boolean
+  readonly embeddingDimensions?: number
+  /** True when some embedded chunks were produced by a different embedding model than the one now configured. */
+  readonly staleEmbeddings?: boolean
+  /** Number of embedded chunks whose model differs from the current configuration. */
+  readonly staleChunkCount?: number
+}
+
+/** Full document view: metadata, raw text, and every chunk. */
+export interface DocumentDetail {
+  readonly processing?: DocumentProcessingInfo
+  readonly id: string
+  readonly baseId: string
+  readonly title: string
+  readonly sourceType: DocumentSourceType
+  readonly fileName?: string
+  readonly url?: string
+  /** Absolute live path for a locally tracked source, when applicable. */
+  readonly sourcePath?: string
+  /** Base-relative path of the persisted original source bytes (file docs). */
+  readonly rawFilePath?: string
+  readonly rawText?: string
+  /** True when `rawText` was capped to `rawTextLimit` to keep the payload bounded. */
+  readonly rawTextTruncated?: boolean
+  readonly charCount: number
+  readonly tokenCount?: number
+  readonly chunkCount: number
+  readonly createdAt: number
+  /** Omitted when the caller requests a lightweight view (`includeChunks: false`). */
+  readonly chunks?: KnowledgeChunk[]
+}
+
+/** Payload for creating a knowledge base. */
+export interface CreateBaseRequest {
+  readonly name: string
+  readonly description?: string
+  readonly group?: string
+  readonly config?: BaseConfig
+}
+
+/** Payload for updating a knowledge base (name, description, group, per-base config). */
+export interface UpdateBaseRequest {
+  readonly name?: string
+  readonly description?: string
+  readonly group?: string
+  readonly config?: BaseConfig
+}
+
+/** Payload for adding a document from raw text. */
+export interface AddTextDocumentRequest {
+  readonly baseId: string
+  readonly title: string
+  readonly content: string
+  /** Parent directory id, when this text lives inside a directory container. */
+  readonly parentDirectoryId?: string
+}
+
+/** Payload for adding a document from an uploaded file (base64 content). */
+export interface AddFileDocumentRequest {
+  readonly baseId: string
+  readonly title?: string
+  readonly fileName: string
+  readonly mimeType?: string
+  /** Base64-encoded file bytes. */
+  readonly contentBase64: string
+  /** Same-name conflict handling (overrides the base/global `conflictStrategy`):
+   *  `keep` both, `replace` the existing entry, `rename` with a `_1` suffix
+   *  (default), or `detect` and fail with a conflict error. */
+  readonly conflict?: 'keep' | 'replace' | 'rename' | 'detect'
+  /** Parent directory id, when this file lives inside a directory container. */
+  readonly parentDirectoryId?: string
+}
+
+/** Payload for importing a local directory (every supported file becomes an entry). */
+export interface ImportDirectoryRequest {
+  readonly baseId: string
+  readonly path: string
+}
+
+/** Payload for importing a document from a URL. */
+export interface ImportUrlRequest {
+  readonly baseId: string
+  readonly url: string
+  readonly title?: string
+  /** Parent directory id, when this URL lives inside a directory container. */
+  readonly parentDirectoryId?: string
+}
+
+/** Metadata filters applied before candidate limits and ranking. Inclusion
+ * conditions are ANDed; either exclusion condition removes a document. */
+export interface SearchFilter {
+  /** Restrict to these document ids. `undefined` is unrestricted; `[]`
+   * deliberately matches no documents. */
+  readonly docIds?: readonly string[]
+  /** Exclude these exact document ids, including ids also present in docIds.
+   * Empty arrays and unknown ids have no effect. */
+  readonly excludeDocIds?: readonly string[]
+  /** Case-insensitive substring match on the document title. */
+  readonly titleIncludes?: string
+  /** Exclude titles containing any of these case-insensitive literal
+   * substrings. Terms are trimmed; blank terms and empty arrays are ignored. */
+  readonly titleExcludes?: readonly string[]
+  /** Restrict to these source types (file / text / url / directory).
+   * `undefined` is unrestricted; `[]` deliberately matches nothing. */
+  readonly sourceTypes?: readonly DocumentSourceType[]
+  /** Only documents updated at or after this epoch millisecond. */
+  readonly updatedAfter?: number
+  /** Only documents updated at or before this epoch millisecond. */
+  readonly updatedBefore?: number
+}
+
+/** Payload for a search. */
+export interface SearchRequest {
+  readonly query: string
+  /** Additional query phrasings searched alongside `query` (multi-query
+   *  retrieval): each variant retrieves independently and the hits are
+   *  fused by reciprocal rank after normalization/deduplication, so
+   *  paraphrased/translated rephrasings widen recall without comparing
+   *  incompatible raw score scales. */
+  readonly queries?: readonly string[]
+  readonly baseId?: string
+  /** Search only these bases. Omitted baseId + absent baseIds = every base;
+   *  an explicitly empty baseIds array searches no bases. */
+  readonly baseIds?: readonly string[]
+  readonly topK?: number
+  readonly mode?: SearchMode
+  readonly threshold?: number
+  readonly mmr?: boolean
+  /** Metadata filters narrowing the search to a subset of documents. */
+  readonly filter?: SearchFilter
+}
+
+/** Result of a search. */
+export interface SearchResult {
+  readonly query: string
+  readonly mode: SearchMode
+  /** Always emitted by current services; optional for source compatibility
+   * with consumers compiled against older 0.3.x declarations. */
+  readonly scoreKind?: SearchScoreKind
+  /** Always emitted by current services; optional for source compatibility. */
+  readonly retrieval?: RetrievalStatus
+  readonly total: number
+  readonly reranked: boolean
+  /** Structured diagnostics for a configured reranker. Omitted when disabled. */
+  readonly rerank?: RerankStatus
+  readonly elapsedMs: number
+  readonly hits: SearchHit[]
+}
+
+export type RerankErrorCode =
+  | 'model_not_downloaded'
+  | 'model_checking'
+  | 'model_unhealthy'
+  | 'unsupported_model'
+  | 'timeout'
+  | 'invalid_response'
+  | 'runtime_error'
+  | 'process_crash'
+  | 'circuit_open'
+  | 'busy'
+  | 'provider_error'
+
+export interface RerankErrorDetail {
+  readonly code: RerankErrorCode
+  readonly message: string
+  readonly retryable: boolean
+  readonly action?: 'download_model' | 'run_self_test' | 'check_config' | 'retry_later'
+}
+
+export interface RerankStatus {
+  readonly configured: true
+  readonly provider: 'local' | 'remote'
+  readonly model: string
+  /** `skipped` means the reranker was never invoked — a readiness/queue gate
+   *  refused it before any work started. Reporting that as `degraded` told the
+   *  caller a rerank had failed when nothing had been attempted (issue #18). */
+  readonly status: 'applied' | 'not_needed' | 'skipped' | 'degraded'
+  readonly attempted: boolean
+  readonly applied: boolean
+  readonly candidateCount: number
+  /** Only present when the reranker actually ran. */
+  readonly elapsedMs?: number
+  readonly error?: RerankErrorDetail
+}

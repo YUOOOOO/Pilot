@@ -1,0 +1,141 @@
+{
+  "name": "dsh-knowledge",
+  "description": "Cherry Studio-style knowledge base system for DeepSeek Harness (DSH): bases, documents, chunking, embeddings (OpenAI-compatible / Ollama / local / lexical fallback), retrieval, model-facing tools, and a browser management panel",
+  "version": "0.5.2",
+  "packageManager": "pnpm@11.7.0",
+  "license": "AGPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Soren-ABT/dsh-knowledge.git"
+  },
+  "homepage": "https://github.com/Soren-ABT/dsh-knowledge",
+  "bugs": {
+    "url": "https://github.com/Soren-ABT/dsh-knowledge/issues"
+  },
+  "type": "module",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./knowledge": {
+      "types": "./lib/types/knowledge/index.d.ts",
+      "default": "./lib/knowledge/index.js"
+    },
+    "./tool-knowledge": {
+      "types": "./lib/types/tool-knowledge/index.d.ts",
+      "default": "./lib/tool-knowledge/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/ui/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-runtime",
+        "@deepseek-ai/dsh-client-ui-slots",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "files": [
+    "lib",
+    "cordis.patch.yml",
+    "dsh.plugin.json",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "LICENSE",
+    "docs/releases",
+    "docs/mineru-self-hosted.md",
+    "benchmarks",
+    "scripts",
+    "pnpm-workspace.yaml"
+  ],
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "audit:prod": "node scripts/audit-production.mjs",
+    "audit:prod:self-test": "node scripts/audit-production.mjs --self-test",
+    "verify:workspace": "node scripts/verify-build-policy.mjs",
+    "verify:workspace:self-test": "node scripts/verify-build-policy.mjs --self-test",
+    "benchmark": "npm run build --silent && node scripts/benchmark-retrieval.mjs",
+    "benchmark:json": "npm run build --silent && node scripts/benchmark-retrieval.mjs --json",
+    "benchmark:update-baseline": "npm run build --silent && node scripts/benchmark-retrieval.mjs --update",
+    "verify:package": "node scripts/verify-package.mjs",
+    "verify:release": "node scripts/verify-release.mjs",
+    "smoke:packed": "node scripts/smoke-packed-install.mjs",
+    "smoke:workers": "npm run build --silent && node scripts/smoke-worker-protocol.mjs",
+    "smoke:mineru-local": "npm run build --silent && node scripts/smoke-mineru-local.mjs",
+    "smoke:mineru-managed": "npm run build --silent && node scripts/smoke-mineru-managed.mjs",
+    "benchmark:structured": "vitest run tests/structured-chunk.spec.ts tests/mineru-local.spec.ts tests/processing-lifecycle.spec.ts",
+    "smoke:local-embedding": "npm run build --silent && node scripts/smoke-local-embedding.mjs",
+    "smoke:local-rerank": "npm run build --silent && node scripts/smoke-local-rerank.mjs",
+    "release:check": "node scripts/release-check.mjs",
+    "check": "pnpm run typecheck && pnpm run test && pnpm run build",
+    "prepack": "node build.mjs",
+    "prepare": "node build.mjs"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "dsh-bundle",
+    "deepseek-harness",
+    "knowledge-base",
+    "rag",
+    "embedding",
+    "vector-search",
+    "cherry-studio"
+  ],
+  "dependencies": {
+    "@firecrawl/anydoc": "^0.1.9",
+    "@huggingface/transformers": "4.3.1",
+    "@napi-rs/canvas": "^1.0.6",
+    "jszip": "^3.10.1",
+    "mammoth": "^1.8.0",
+    "mupdf": "^1.28.0",
+    "onnxruntime-node": "1.21.0",
+    "pdf-parse": "^1.1.1",
+    "pdfjs-dist": "^4.10.38",
+    "ppu-ocv": "^4.0.0",
+    "ppu-paddle-ocr": "^6.4.0",
+    "tesseract.js": "^7.0.0",
+    "turndown": "^7.2.4",
+    "undici": "^7.30.0",
+    "word-extractor": "^1.0.4"
+  },
+  "optionalDependencies": {
+    "@napi-rs/canvas-win32-x64-msvc": "^1.0.6"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "link:../dsh/vendor/cordis",
+    "@deepseek-ai/dsh-host-webserver": "link:../dsh/packages/host/webserver",
+    "@deepseek-ai/dsh-storage": "link:../dsh/packages/storage/storage",
+    "@deepseek-ai/dsh-storage-domain": "link:../dsh/packages/storage/storage-domain",
+    "@deepseek-ai/dsh-tools": "link:../dsh/packages/core/tools",
+    "@deepseek-ai/schemastery": "link:../dsh/vendor/schemastery",
+    "@types/node": "^24.0.0",
+    "@types/react": "~18.3.1",
+    "@types/turndown": "^5.0.6",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.9.0",
+    "vitest": "^4.1.8",
+    "zod": "^4.4.3"
+  }
+}

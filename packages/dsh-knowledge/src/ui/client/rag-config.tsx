@@ -1,0 +1,868 @@
+/**
+ * Cherry Studio-style per-base retrieval settings panel (the 设置 view): the
+ * exact section order of RagConfigPanel — 文档处理, 嵌入模型, 重排模型,
+ * Top K + 相似度阈值, and a collapsed 高级设置 accordion — with a
+ * 重置 / 保存 footer and dirty tracking.
+ * @module dsh-knowledge/client/rag-config
+ */
+
+import { useEffect, useMemo, useState } from 'react'
+import type { CSSProperties } from 'react'
+import { KnowledgeApi } from './api.js'
+import type { BaseConfig, BaseSummary, EmbeddingProvider, KnowledgeConfig, LocalModelStatus, ModelSuggestions } from './api.js'
+import { C, style } from './theme.js'
+import { IconRefresh } from './icons.js'
+import type { Translate } from './locales.js'
+
+interface PanelProps {
+  base: BaseSummary
+  globalConfig: KnowledgeConfig
+  api: KnowledgeApi
+  t: Translate
+  busy: boolean
+  onSaved: () => void
+}
+
+export function RagConfigPanel(props: PanelProps): JSX.Element {
+  const { base, globalConfig, api, t, busy, onSaved } = props
+  const [values, setValues] = useState<KnowledgeConfig>(() => ({
+    ...globalConfig,
+    ...(base.config ?? {}),
+  }))
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+  const [localStatus, setLocalStatus] = useState<LocalModelStatus | null>(null)
+  const [suggestions, setSuggestions] = useState<ModelSuggestions>({ embedding: [], local: [], rerank: [], ollamaEmbedding: [], ollamaVision: [] })
+  // Models actually downloaded/installed on this machine — the pickers below
+  // are dropdowns over these lists, not free-typed names.
+  const [readyLocalEmbeddings, setReadyLocalEmbeddings] = useState<string[]>([])
+  const [readyLocalRerankers, setReadyLocalRerankers] = useState<string[]>([])
+  const [ollamaEmbeddingModels, setOllamaEmbeddingModels] = useState<string[]>([])
+  const [ollamaCaptionModels, setOllamaCaptionModels] = useState<string[]>([])
+  // Distinguish "Ollama has no models" from "Ollama is unreachable" — an
+  // empty list caused by a connection failure should not look like a model
+  // that was never pulled.
+  const [ollamaEmbeddingUnreachable, setOllamaEmbeddingUnreachable] = useState(false)
+  const [ollamaCaptionUnreachable, setOllamaCaptionUnreachable] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  /** Cherry's dimension probe is running (save button shows a pending state). */
+  const [probing, setProbing] = useState(false)
+  const [processorChecking, setProcessorChecking] = useState(false)
+  const [processorCheckResult, setProcessorCheckResult] = useState<string | null>(null)
+  const [processorCheckError, setProcessorCheckError] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void api.getModelSuggestions().then(result => { if (!cancelled) setSuggestions(result) }).catch(() => {})
+    return () => { cancelled = true }
+  }, [api])
+
+  // Downloaded local models (Settings → Local Models): ready embedding
+  // models feed the `local` embedding dropdown, ready rerankers the rerank
+  // suggestions (as `local:` prefixed ids).
+  useEffect(() => {
+    let cancelled = false
+    void api.listLocalModels().then(list => {
+      if (cancelled) return
+      const ready = list.filter(m => m.status === 'ready').map(m => ({ id: m.id, kind: m.kind as string }))
+      setReadyLocalEmbeddings(ready.filter(m => m.kind === 'embedding').map(m => m.id))
+      setReadyLocalRerankers(ready.filter(m => m.kind === 'reranking').map(m => m.id))
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [api])
+
+  // Installed Ollama models, per relevant base URL: the embedding picker
+  // uses the embedding base URL, the captioning picker its own.
+  const ollamaBaseFor = (base: string): string => (base.trim() === '' ? 'http://127.0.0.1:11434' : base.trim())
+
+  // Auto-fix a stale tag-less Ollama name: `qwen2.5vl` in the config while
+  // only `qwen2.5vl:7b` is installed used to stay unmatched (404 at
+  // runtime) and to show up in the dropdown as a phantom second entry.
+  // Patch only when exactly one tagged sibling matches; otherwise leave the
+  // value alone (the stale-option rendering marks it 未安装).
+  const autoFixOllamaTag = (kind: 'embedding' | 'caption', current: string, installed: readonly string[]): void => {
+    const model = current.trim()
+    if (model === '' || installed.includes(model)) return
+    const siblings = installed.filter(name => name === `${model}:latest` || name.startsWith(`${model}:`))
+    if (siblings.length === 1) {
+      patch(kind === 'embedding' ? { embeddingModel: siblings[0] } : { imageCaptionModel: siblings[0] })
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    const base = ollamaBaseFor(values.embeddingBaseUrl)
+    void api.listOllamaModels(base).then(({ models }) => {
+      if (cancelled) return
+      const names = models.map(m => m.name)
+      setOllamaEmbeddingModels(names)
+      setOllamaEmbeddingUnreachable(false)
+      autoFixOllamaTag('embedding', values.embeddingModel, names)
+    }).catch(() => {
+      if (cancelled) return
+      setOllamaEmbeddingModels([])
+      setOllamaEmbeddingUnreachable(true)
+    })
+    return () => { cancelled = true }
+  }, [api, values.embeddingBaseUrl])
+  useEffect(() => {
+    let cancelled = false
+    const base = ollamaBaseFor(values.imageCaptionBaseUrl)
+    void api.listOllamaModels(base).then(({ models }) => {
+      if (cancelled) return
+      const names = models.map(m => m.name)
+      setOllamaCaptionModels(names)
+      setOllamaCaptionUnreachable(false)
+      autoFixOllamaTag('caption', values.imageCaptionModel, names)
+    }).catch(() => {
+      if (cancelled) return
+      setOllamaCaptionModels([])
+      setOllamaCaptionUnreachable(true)
+    })
+    return () => { cancelled = true }
+  }, [api, values.imageCaptionBaseUrl])
+
+  const listId = (kind: 'embedding' | 'local' | 'rerank'): string => `kb-${kind}-models-${base.id}`
+
+  useEffect(() => {
+    if (values.embeddingProvider !== 'local') { setLocalStatus(null); return }
+    let cancelled = false
+    const model = values.embeddingModel.trim() === '' ? 'onnx-community/Qwen3-Embedding-0.6B-ONNX' : values.embeddingModel.trim()
+    const poll = async (): Promise<void> => {
+      try {
+        const status = await api.getLocalModelStatus(model)
+        if (!cancelled) setLocalStatus(status)
+      } catch {
+        // keep the last known status on transient failures
+      }
+    }
+    void poll()
+    const timer = window.setInterval(() => { void poll() }, 800)
+    return () => { cancelled = true; window.clearInterval(timer) }
+  }, [api, values.embeddingProvider, values.embeddingModel])
+
+  const initial = useMemo<KnowledgeConfig>(() => ({
+    ...globalConfig,
+    ...(base.config ?? {}),
+  }), [globalConfig, base.config])
+
+  const dirty = JSON.stringify(values) !== JSON.stringify(initial)
+  const processorDirty = (['documentProcessorProvider', 'mineruLocalUrl', 'mineruLocalApiKey', 'mineruTier'] as const)
+    .some(key => values[key] !== initial[key])
+  const checkProcessor = async (): Promise<void> => {
+    setProcessorChecking(true)
+    setProcessorCheckResult(null)
+    try {
+      const result = await api.checkProcessor(base.id)
+      setProcessorCheckError(false)
+      setProcessorCheckResult(`${t('processorCheckSuccess')} · MinerU ${result.version} · ${result.tiers.join(', ')}`)
+    } catch (error) {
+      setProcessorCheckError(true)
+      setProcessorCheckResult(error instanceof Error ? error.message : String(error))
+    } finally {
+      setProcessorChecking(false)
+    }
+  }
+
+  // Cherry semantics: switching the embedding model of a NON-EMPTY base that
+  // already HAS vectors is refused by the host (the user must rebuild via
+  // 重建知识库). Warn BEFORE the user saves, so a refused save never reads
+  // as "my selection did nothing".
+  const embeddingChanged = values.embeddingProvider !== initial.embeddingProvider
+    || values.embeddingModel !== initial.embeddingModel
+  const hadModel = initial.embeddingProvider !== 'none' && (initial.embeddingModel ?? '').trim() !== ''
+  const needsRebuild = embeddingChanged && hadModel && (base.documentCount ?? 0) > 0
+
+  const patch = (p: Partial<KnowledgeConfig>): void => setValues(prev => ({ ...prev, ...p }))
+
+  // Number inputs. Two traps, both of which used to reach the durable schema and
+  // come back as an opaque validation error on save:
+  //  - an emptied field is `Number('') === 0`, which is FINITE, so the old guard
+  //    accepted it — and 0 fails `int().gt(0)` for chunkSize/topK/…;
+  //  - a hand-typed value outside the field's range (topK 0, weight 9, a
+  //    fractional chunk size) was stored as typed.
+  // Blank now means "no change" (the controlled input snaps back) and a value
+  // outside the documented range is clamped to it rather than saved.
+  const NUMBER_RANGES: Partial<Record<keyof KnowledgeConfig, { min: number; max?: number; int?: boolean }>> = {
+    chunkSize: { min: 1, int: true },
+    chunkOverlap: { min: 0, int: true },
+    topK: { min: 1, int: true },
+    embeddingBatchSize: { min: 1, int: true },
+    siblingChunks: { min: 0, max: 3, int: true },
+    chunkTokenLimit: { min: 0, int: true },
+    urlRefreshHours: { min: 0, int: true },
+    autoRetrieveWeight: { min: 0, max: 5, int: true },
+    similarityThreshold: { min: 0, max: 1 },
+    mmrDiversity: { min: 0, max: 1 },
+    rrfVectorWeight: { min: 0.1, max: 5 },
+    semanticChunkThreshold: { min: 0, max: 1 },
+    localRerankTimeoutMs: { min: 10_000, max: 300_000, int: true },
+    documentProcessingTimeoutMs: { min: 10_000, max: 7_200_000, int: true },
+    localWorkerIdleTimeoutMs: { min: 0, int: true },
+  }
+
+  const patchNumber = (key: keyof KnowledgeConfig, raw: string): void => {
+    if (raw.trim() === '') return
+    let n = Number(raw)
+    if (!Number.isFinite(n)) return
+    const range = NUMBER_RANGES[key]
+    if (range !== undefined) {
+      if (range.int === true) n = Math.trunc(n)
+      if (n < range.min) n = range.min
+      if (range.max !== undefined && n > range.max) n = range.max
+    }
+    patch({ [key]: n } as Partial<KnowledgeConfig>)
+  }
+
+  const save = async (): Promise<void> => {
+    setSaveError(null)
+    // Cherry's dimension probe: before saving a changed embedding config, embed
+    // a probe text so a wrong-dimension or unavailable model fails the save up
+    // front instead of surfacing later at import time (the host re-checks on
+    // every embed and would refuse mid-import).
+    const embeddingChangedNow = values.embeddingProvider !== initial.embeddingProvider
+      || values.embeddingModel !== initial.embeddingModel
+    if (embeddingChangedNow && values.embeddingProvider !== 'none') {
+      setProbing(true)
+      try {
+        const dimensions = await api.probeEmbeddingDimensions({
+          provider: values.embeddingProvider,
+          baseUrl: values.embeddingBaseUrl,
+          model: values.embeddingModel,
+          apiKey: values.embeddingApiKey ?? '',
+        })
+        if (!Number.isFinite(dimensions) || dimensions <= 0) {
+          throw new Error('embedding returned an invalid dimension')
+        }
+      } catch (err) {
+        setProbing(false)
+        setSaveError(`${t('dimensionProbeFailed')}: ${err instanceof Error ? err.message : String(err)}`)
+        return
+      }
+      setProbing(false)
+    }
+    const overrides: BaseConfig = {}
+    const current = (base.config ?? {}) as Record<string, unknown>
+    for (const key of Object.keys(values) as Array<keyof KnowledgeConfig>) {
+      const value = values[key]
+      const wasOverridden = current[key] !== undefined
+      if (value !== globalConfig[key] || wasOverridden) {
+        // A string field set back to its global value clears the override.
+        ;(overrides as Record<string, unknown>)[key] = value === globalConfig[key] && typeof value === 'string' ? '' : value
+      }
+    }
+    try {
+      await api.updateBase(base.id, { config: overrides })
+      onSaved()
+    } catch (err) {
+      // The host refuses switching an already-configured embedding model on a
+      // non-empty base (Cherry's restore route) — surface that guidance.
+      setSaveError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  const usesThreshold = values.rerankModel.trim() !== ''
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minHeight: 0 }}>
+      <div style={{ ...style.card, flex: 1, overflowY: 'auto' }} className="kb-scroll kb-rag-config">
+        {/* 文档处理 */}
+        <Section title={t('docProcessing')} hint={t('docProcessingHint')}>
+          <select
+            style={style.input}
+            value={values.documentProcessorProvider}
+            aria-label={t('docProcessing')}
+            onChange={(e) => { patch({ documentProcessorProvider: e.target.value as KnowledgeConfig['documentProcessorProvider'] }); setProcessorCheckResult(null) }}
+          >
+            <option value="builtin">{t('processorBuiltin')}</option>
+            <option value="mineru-local">{t('mineruLocalOption')}</option>
+            <option value="mineru">{t('mineruOption')}</option>
+          </select>
+          {values.documentProcessorProvider === 'mineru' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+              <input
+                style={style.input}
+                type="password"
+                placeholder="MinerU API Key"
+                value={values.mineruApiKey}
+                onChange={(e) => patch({ mineruApiKey: e.target.value })}
+              />
+              <input
+                style={style.input}
+                placeholder={t('mineruHostPlaceholder')}
+                value={values.mineruApiHost}
+                onChange={(e) => patch({ mineruApiHost: e.target.value })}
+              />
+              <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>
+                {t('processorMineruDesc')}
+              </div>
+            </div>
+          )}
+          {values.documentProcessorProvider === 'mineru-local' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 12 }}>
+              <label style={{ display: 'block', fontSize: 13, lineHeight: 1.5 }}>{t('mineruLocalUrl')}
+                <input style={{ ...style.input, marginTop: 6 }} value={values.mineruLocalUrl ?? 'http://127.0.0.1:8000'} onChange={e => patch({ mineruLocalUrl: e.target.value })} spellCheck={false} />
+              </label>
+              <label style={{ display: 'block', fontSize: 13, lineHeight: 1.5 }}>{t('mineruLocalKey')}
+                <input style={{ ...style.input, marginTop: 6 }} type="password" autoComplete="new-password" value={values.mineruLocalApiKey ?? ''} onChange={e => patch({ mineruLocalApiKey: e.target.value })} />
+              </label>
+              <label style={{ display: 'block', fontSize: 13, lineHeight: 1.5 }}>{t('mineruTier')}
+                <select style={{ ...style.input, marginTop: 6 }} value={values.mineruTier ?? 'basic'} onChange={e => patch({ mineruTier: e.target.value as KnowledgeConfig['mineruTier'] })}>
+                  <option value="flash">{t('mineruFlash')}</option><option value="basic">{t('mineruBasic')}</option>
+                  <option value="standard">{t('mineruStandard')}</option><option value="advanced">{t('mineruAdvanced')}</option>
+                </select>
+              </label>
+              <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>{t('mineruLocalDesc')} <a href="https://github.com/opendatalab/MinerU/blob/mineru-4.0.6-released/LICENSE.md" target="_blank" rel="noreferrer">MinerU license</a></div>
+              <button type="button" style={style.button} disabled={busy || processorChecking || processorDirty} onClick={() => void checkProcessor()}>{t(processorChecking ? 'processorChecking' : 'processorCheck')}</button>
+              <div style={{ fontSize: 13, color: C.muted }}>{t('processorCheckSaved')}</div>
+              {!processorDirty && processorCheckResult !== null && <div role="status" style={{ fontSize: 12, color: processorCheckError ? C.danger : C.success }}>{processorCheckResult}</div>}
+            </div>
+          )}
+          <FieldRow label={t('processingTimeout')}>
+            <input type="number" style={style.input} min={10000} max={7200000} step={1000} value={values.documentProcessingTimeoutMs ?? 1_800_000} onChange={e => patchNumber('documentProcessingTimeoutMs', e.target.value)} />
+          </FieldRow>
+          <FieldRow label={t('structuredChunking')} hint={t('structuredChunkingHint')}>
+            <Switch checked={values.structuredChunking ?? true} onChange={v => patch({ structuredChunking: v })} />
+          </FieldRow>
+          {/* 图表描述（VLM） */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
+            <div style={{ fontSize: 13, color: C.muted, lineHeight: 1.6 }}>{t('imageCaptionHint')}</div>
+            <select
+              style={style.input}
+              value={values.imageCaptionProvider}
+              onChange={(e) => {
+                const provider = e.target.value as 'off' | 'openai' | 'ollama'
+                if (provider === 'ollama') {
+                  // Don't carry a leftover openai model name into the Ollama
+                  // dropdown; auto-pick the first installed vision model.
+                  const next = ollamaCaptionModels.includes(values.imageCaptionModel)
+                    ? values.imageCaptionModel
+                    : (ollamaCaptionModels[0] ?? '')
+                  patch({ imageCaptionProvider: provider, imageCaptionModel: next })
+                } else {
+                  patch({ imageCaptionProvider: provider })
+                }
+              }}
+            >
+              <option value="off">{t('imageCaptionOff')}</option>
+              <option value="openai">{t('imageCaptionOpenAI')}</option>
+              <option value="ollama">{t('imageCaptionOllama')}</option>
+            </select>
+            {values.imageCaptionProvider !== 'off' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {values.imageCaptionProvider === 'ollama' ? (
+                  <select
+                    style={style.input}
+                    value={ollamaCaptionModels.includes(values.imageCaptionModel) ? values.imageCaptionModel : ''}
+                    onChange={(e) => { if (e.target.value !== '') patch({ imageCaptionModel: e.target.value }) }}
+                  >
+                    {ollamaCaptionModels.length === 0 && (
+                      <option value="">{ollamaCaptionUnreachable ? t('ollamaUnreachable') : t('noOllamaModels')}</option>
+                    )}
+                    {!ollamaCaptionModels.includes(values.imageCaptionModel) && (
+                      <option value="">
+                        {values.imageCaptionModel.trim() !== ''
+                          ? `${values.imageCaptionModel}${t('staleModelSuffix')}`
+                          : t('selectModelPlaceholder')}
+                      </option>
+                    )}
+                    {ollamaCaptionModels.map(name => <option key={name} value={name}>{name}</option>)}
+                  </select>
+                ) : (
+                  <input
+                    style={style.input}
+                    placeholder={t('visionModelPlaceholder')}
+                    value={values.imageCaptionModel}
+                    onChange={(e) => patch({ imageCaptionModel: e.target.value })}
+                  />
+                )}
+                <input
+                  style={style.input}
+                  placeholder={values.imageCaptionProvider === 'ollama'
+                    ? t('captionBaseUrlOllamaPlaceholder')
+                    : t('captionBaseUrlPlaceholder')}
+                  value={values.imageCaptionBaseUrl}
+                  onChange={(e) => patch({ imageCaptionBaseUrl: e.target.value })}
+                />
+                {values.imageCaptionProvider === 'openai' && (
+                  <input
+                    style={style.input}
+                    type="password"
+                    placeholder="API Key"
+                    value={values.imageCaptionApiKey}
+                    onChange={(e) => patch({ imageCaptionApiKey: e.target.value })}
+                  />
+                )}
+              </div>
+            )}
+          </div>
+        </Section>
+
+        {/* 嵌入模型 */}
+        <Section title={t('embeddingProvider')} hint={t('perBaseHint')}>
+          <select
+            style={style.input}
+            value={values.embeddingProvider}
+            onChange={(e) => {
+              const provider = e.target.value as EmbeddingProvider
+              if (provider === 'local') {
+                // Keep the current model only when it is actually a
+                // downloaded local model; otherwise auto-pick the first
+                // ready one (or leave it unset). Never inject a default name
+                // the user has not downloaded — that made the dropdown show
+                // a model that does not exist.
+                const next = readyLocalEmbeddings.includes(values.embeddingModel)
+                  ? values.embeddingModel
+                  : (readyLocalEmbeddings[0] ?? '')
+                patch({ embeddingProvider: provider, embeddingModel: next })
+              } else if (provider === 'ollama') {
+                // Same for Ollama: a leftover name from another provider
+                // (e.g. a local model id) must not appear in the Ollama
+                // dropdown as if it were installed there.
+                const next = ollamaEmbeddingModels.includes(values.embeddingModel)
+                  ? values.embeddingModel
+                  : (ollamaEmbeddingModels[0] ?? '')
+                // Auto-fill the well-known local Ollama endpoint so a user
+                // creating a fresh base does not retype http://127.0.0.1:11434
+                // every time (the model name is already auto-picked).
+                const nextBase = values.embeddingBaseUrl.trim() === ''
+                  ? 'http://127.0.0.1:11434'
+                  : values.embeddingBaseUrl
+                patch({ embeddingProvider: provider, embeddingModel: next, embeddingBaseUrl: nextBase })
+              } else {
+                // openai / none: free-text or none — keep whatever was typed.
+                patch({ embeddingProvider: provider })
+              }
+            }}
+          >
+            <option value="none">{t('providerNone')}</option>
+            <option value="openai">{t('providerOpenAI')}</option>
+            <option value="ollama">{t('providerOllama')}</option>
+            <option value="local">{t('providerLocal')}</option>
+          </select>
+          {values.embeddingProvider === 'local' && (
+            <div style={{ marginTop: 10 }}>
+              <label style={style.label}>{t('embeddingModel')}</label>
+              <select
+                style={style.input}
+                value={readyLocalEmbeddings.includes(values.embeddingModel) ? values.embeddingModel : ''}
+                onChange={(e) => { if (e.target.value !== '') patch({ embeddingModel: e.target.value }) }}
+              >
+                {readyLocalEmbeddings.length === 0 && (
+                  <option value="">{t('noLocalModelsReady')}</option>
+                )}
+                {/* A stale/unset value must show as its own option — without
+                    this, an empty value makes the browser display the FIRST
+                    list entry as if it were selected while the saved config
+                    stays empty (the 'selection' then never applies). A stale
+                    name is marked 未安装 so it is not mistaken for a real
+                    installed model. */}
+                {!readyLocalEmbeddings.includes(values.embeddingModel) && (
+                  <option value="">
+                    {values.embeddingModel.trim() !== ''
+                      ? `${values.embeddingModel}${t('staleModelSuffix')}`
+                      : t('selectModelPlaceholder')}
+                  </option>
+                )}
+                {readyLocalEmbeddings.map(id => <option key={id} value={id}>{id}</option>)}
+              </select>
+              {localStatus !== null && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8, fontSize: 12 }}>
+                  {localStatus.status === 'downloading' && (
+                    <>
+                      <span className="kb-spinner" style={style.spinner} />
+                      <span style={{ color: C.accent }}>{t('localModelDownloading')} {Math.floor(localStatus.progress)}%</span>
+                      <div style={{ flex: 1, height: 4, borderRadius: 2, background: C.surface2 }}>
+                        <div style={{ width: `${localStatus.progress}%`, height: 4, borderRadius: 2, background: C.accent }} />
+                      </div>
+                    </>
+                  )}
+                  {localStatus.status === 'ready' && (
+                    <span style={{ color: C.success }}>✓ {t('localModelReady')}</span>
+                  )}
+                  {localStatus.status === 'error' && (
+                    <span style={{ color: C.danger }} title={localStatus.message}>✕ {t('localModelError')}</span>
+                  )}
+                  {localStatus.status === 'idle' && (
+                    <span style={{ color: C.muted }}>{t('localModelHint')}</span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+          {values.embeddingProvider === 'ollama' && (
+            <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                <label style={style.label}>{t('embeddingModel')}</label>
+                <select
+                  style={style.input}
+                  value={ollamaEmbeddingModels.includes(values.embeddingModel) ? values.embeddingModel : ''}
+                  onChange={(e) => { if (e.target.value !== '') patch({ embeddingModel: e.target.value }) }}
+                >
+                  {ollamaEmbeddingModels.length === 0 && (
+                    <option value="">{ollamaEmbeddingUnreachable ? t('ollamaUnreachable') : t('noOllamaModels')}</option>
+                  )}
+                  {!ollamaEmbeddingModels.includes(values.embeddingModel) && (
+                    <option value="">
+                      {values.embeddingModel.trim() !== ''
+                        ? `${values.embeddingModel}${t('staleModelSuffix')}`
+                        : t('selectModelPlaceholder')}
+                    </option>
+                  )}
+                  {ollamaEmbeddingModels.map(name => <option key={name} value={name}>{name}</option>)}
+                </select>
+              </div>
+              <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                <label style={style.label}>{t('embeddingBaseUrl')}</label>
+                <input style={style.input} value={values.embeddingBaseUrl} onChange={(e) => patch({ embeddingBaseUrl: e.target.value })} />
+              </div>
+            </div>
+          )}
+          {values.embeddingProvider === 'openai' && (
+            <>
+              <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                  <label style={style.label}>{t('embeddingModel')}</label>
+                  <input
+                    list={listId('embedding')}
+                    style={style.input}
+                    value={values.embeddingModel}
+                    onChange={(e) => patch({ embeddingModel: e.target.value })}
+                  />
+                </div>
+                <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+                  <label style={style.label}>{t('embeddingBaseUrl')}</label>
+                  <input style={style.input} value={values.embeddingBaseUrl} onChange={(e) => patch({ embeddingBaseUrl: e.target.value })} />
+                </div>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <label style={style.label}>{t('embeddingApiKey')}</label>
+                <input
+                  style={style.input}
+                  value={values.embeddingApiKey ?? ''}
+                  onChange={(e) => patch({ embeddingApiKey: e.target.value })}
+                />
+              </div>
+            </>
+          )}
+          {needsRebuild && (
+            <div style={{ marginTop: 10 }}>
+              <div style={style.warningHint}>{t('embeddingSwitchWarning')}</div>
+            </div>
+          )}
+        </Section>
+
+        {/* 重排模型 */}
+        <Section title={t('rerankModel')} hint={t('rerankHint')}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+              <label style={style.label}>{t('modelLabel')}</label>
+              <input
+                list={listId('rerank')}
+                style={style.input}
+                value={values.rerankModel}
+                onChange={(e) => patch({ rerankModel: e.target.value })}
+              />
+            </div>
+            <div style={{ flex: '1 1 220px', minWidth: 0 }}>
+              <label style={style.label}>{t('rerankBaseUrl')}</label>
+              <input style={style.input} value={values.rerankBaseUrl} onChange={(e) => patch({ rerankBaseUrl: e.target.value })} />
+            </div>
+          </div>
+          <div style={{ marginTop: 10 }}>
+            <label style={style.label}>{t('rerankApiKey')}</label>
+            <input
+              style={style.input}
+              value={values.rerankApiKey ?? ''}
+              onChange={(e) => patch({ rerankApiKey: e.target.value })}
+            />
+          </div>
+          {values.rerankModel.startsWith('local:') && (
+            <div style={{ marginTop: 10 }}>
+              <label style={style.label}>{t('localRerankTimeoutMs')}</label>
+              <input
+                style={style.input}
+                type="number"
+                min={10_000}
+                max={300_000}
+                step={5_000}
+                value={values.localRerankTimeoutMs}
+                onChange={(e) => patchNumber('localRerankTimeoutMs', e.target.value)}
+              />
+              <div style={style.hint}>{t('localRerankTimeoutHint')}</div>
+            </div>
+          )}
+        </Section>
+
+        <section aria-label={t('retrievalTuning')} style={{ marginBottom: 20, padding: '18px 18px 4px', border: `1px solid ${C.border}`, borderRadius: 14, background: C.surface2 }}>
+          <h3 style={{ fontSize: 15, fontWeight: 600, margin: '0 0 18px', color: C.text }}>{t('retrievalTuning')}</h3>
+          {/* Top K + 阈值 */}
+          <Section title={t('topK')} hint={t('topKHint')}>
+            <Slider
+              value={values.topK}
+              min={1}
+              max={50}
+              step={1}
+              onChange={(v) => patch({ topK: v })}
+              minLabel="1"
+              maxLabel="50"
+              format={(v) => String(v)}
+            />
+          </Section>
+          {usesThreshold && (
+            <Section title={t('threshold')} hint={t('thresholdHint')}>
+              <Slider
+                value={values.similarityThreshold}
+                min={0}
+                max={1}
+                step={0.01}
+                onChange={(v) => patch({ similarityThreshold: v })}
+                minLabel="0.00"
+                maxLabel="1.00"
+                format={(v) => v.toFixed(2)}
+              />
+            </Section>
+          )}
+
+          {/* 上下文拼接 */}
+          <Section title={t('siblingChunks')} hint={t('siblingChunksHint')}>
+            <Slider
+              value={values.siblingChunks}
+              min={0}
+              max={3}
+              step={1}
+              onChange={(v) => patch({ siblingChunks: v })}
+              minLabel="0"
+              maxLabel="3"
+              format={(v) => String(v)}
+            />
+          </Section>
+        </section>
+
+        {/* 高级设置 */}
+        <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 8 }}>
+          <button style={style.accordionHeader} onClick={() => setAdvancedOpen(v => !v)}>
+            <span>{t('advancedSettings')}</span>
+            <span style={{ color: C.muted, fontSize: 12 }}>{advancedOpen ? '▾' : '▸'}</span>
+          </button>
+          {advancedOpen && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, paddingTop: 4 }}>
+              <FieldRow label={t('smartChunk')} hint={t('smartChunkHint')}>
+                <Switch checked={values.smartChunk} onChange={(v) => patch({ smartChunk: v })} />
+              </FieldRow>
+              <FieldRow label={t('semanticChunk')} hint={t('semanticChunkHint')}>
+                <Switch checked={values.semanticChunk} onChange={(v) => patch({ semanticChunk: v })} />
+              </FieldRow>
+              {values.semanticChunk && (
+                <FieldRow label={t('semanticChunkThreshold')} hint={t('semanticChunkThresholdHint')}>
+                  <input
+                    style={{ ...style.input, width: 100 }}
+                    type="number"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    value={values.semanticChunkThreshold}
+                    onChange={(e) => patchNumber('semanticChunkThreshold', e.target.value)}
+                  />
+                </FieldRow>
+              )}
+              <FieldRow label={t('chunkTokenLimit')} hint={t('chunkTokenLimitHint')}>
+                <input
+                  style={{ ...style.input, width: 100 }}
+                  type="number"
+                  min={0}
+                  value={values.chunkTokenLimit}
+                  onChange={(e) => patchNumber('chunkTokenLimit', e.target.value)}
+                />
+              </FieldRow>
+              <FieldRow label={t('conflictStrategy')} hint={t('conflictStrategyHint')}>
+                <select
+                  style={{ ...style.input, width: 140 }}
+                  value={values.conflictStrategy}
+                  onChange={(e) => patch({ conflictStrategy: e.target.value as 'keep' | 'replace' | 'rename' })}
+                >
+                  <option value="rename">{t('conflictRename')}</option>
+                  <option value="replace">{t('conflictReplace')}</option>
+                  <option value="keep">{t('conflictKeep')}</option>
+                </select>
+              </FieldRow>
+              <FieldRow label={t('urlRefreshHours')} hint={t('urlRefreshHoursHint')}>
+                <input
+                  style={{ ...style.input, width: 100 }}
+                  type="number"
+                  min={0}
+                  value={values.urlRefreshHours}
+                  onChange={(e) => patchNumber('urlRefreshHours', e.target.value)}
+                />
+              </FieldRow>
+              <FieldRow label={t('resumeInterrupted')} hint={t('resumeInterruptedHint')}>
+                <input
+                  type="checkbox"
+                  checked={values.resumeInterruptedOnStartup}
+                  onChange={(e) => patch({ resumeInterruptedOnStartup: e.target.checked })}
+                />
+              </FieldRow>
+              <FieldRow label={t('autoRetrieve')} hint={t('autoRetrieveHint')}>
+                <input
+                  type="checkbox"
+                  checked={values.autoRetrieve}
+                  onChange={(e) => patch({ autoRetrieve: e.target.checked })}
+                />
+              </FieldRow>
+              <FieldRow label={t('autoRetrieveWeight')} hint={t('autoRetrieveWeightHint')}>
+                <input
+                  style={{ ...style.input, width: 100 }}
+                  type="number"
+                  min={0}
+                  max={5}
+                  value={values.autoRetrieveWeight}
+                  onChange={(e) => patchNumber('autoRetrieveWeight', e.target.value)}
+                />
+              </FieldRow>
+              <FieldRow label={t('injectUsagePrompt')} hint={t('injectUsagePromptHint')}>
+                <input
+                  type="checkbox"
+                  aria-label={t('injectUsagePrompt')}
+                  checked={values.injectUsagePrompt !== false}
+                  onChange={(e) => patch({ injectUsagePrompt: e.target.checked })}
+                />
+              </FieldRow>
+              <FieldRow label={t('chunkSeparator')} hint={t('chunkSeparatorHint')}>
+                <input
+                  style={{ ...style.input, width: 140 }}
+                  value={values.chunkSeparator}
+                  onChange={(e) => patch({ chunkSeparator: e.target.value })}
+                />
+              </FieldRow>
+              <FieldRow label={t('chunkSize')}>
+                <input
+                  style={{ ...style.input, width: 100 }}
+                  type="number"
+                  value={values.chunkSize}
+                  onChange={(e) => patchNumber('chunkSize', e.target.value)}
+                />
+              </FieldRow>
+              <FieldRow label={t('chunkOverlap')}>
+                <input
+                  style={{ ...style.input, width: 100 }}
+                  type="number"
+                  value={values.chunkOverlap}
+                  onChange={(e) => patchNumber('chunkOverlap', e.target.value)}
+                />
+              </FieldRow>
+              <FieldRow label={t('rrfVectorWeight')} hint={t('rrfVectorWeightHint')}>
+                <input
+                  style={{ ...style.input, width: 100 }}
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  max="5"
+                  value={values.rrfVectorWeight}
+                  onChange={(e) => patchNumber('rrfVectorWeight', e.target.value)}
+                />
+              </FieldRow>
+              <div style={style.warningHint}>{t('chunkChangeWarning')}</div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* footer: 重置 + 保存 */}
+      {saveError !== null && (
+        <div style={{ ...style.error, marginBottom: 8 }}>{saveError}</div>
+      )}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+        <button
+          style={{ ...style.ghostButton, opacity: dirty ? 1 : 0.45 }}
+          disabled={!dirty || busy}
+          onClick={() => setValues(initial)}
+        >
+          <IconRefresh size={13} />{t('reset')}
+        </button>
+        <button className="kb-primary" style={style.primary} disabled={!dirty || busy || probing} onClick={() => void save()}>
+          {probing ? t('dimensionProbing') : t('save')}
+        </button>
+      </div>
+
+      <datalist id={listId('embedding')}>
+        {(values.embeddingProvider === 'ollama'
+          ? [...suggestions.ollamaEmbedding, ...suggestions.embedding]
+          : suggestions.embedding).map(model => <option key={model} value={model} />)}
+      </datalist>
+      <datalist id={listId('local')}>
+        {suggestions.local.map(model => <option key={model} value={model} />)}
+      </datalist>
+      <datalist id={listId('rerank')}>
+        {/* Downloaded local rerankers first (as local: ids), then remote suggestions. */}
+        {[...readyLocalRerankers.map(id => `local:${id}`), ...suggestions.rerank].map(model => <option key={model} value={model} />)}
+      </datalist>
+    </div>
+  )
+}
+
+function Section(props: { title: string; hint?: string; children: React.ReactNode }): JSX.Element {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <p style={{ ...style.sectionTitle, fontSize: 15, margin: '0 0 5px', lineHeight: 1.45 }}>{props.title}</p>
+      {props.hint !== undefined && <p style={{ ...style.sectionHint, fontSize: 13, margin: '0 0 14px', lineHeight: 1.65, maxWidth: 680 }}>{props.hint}</p>}
+      {props.children}
+    </div>
+  )
+}
+
+function FieldRow(props: { label: string; hint?: string; children: React.ReactNode }): JSX.Element {
+  return (
+    <div className="kb-rag-config-field">
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, lineHeight: 1.45 }}>{props.label}</div>
+        {props.hint !== undefined && <div style={{ fontSize: 12, color: C.muted, marginTop: 4, lineHeight: 1.55 }}>{props.hint}</div>}
+      </div>
+      <div className="kb-rag-config-control">{props.children}</div>
+    </div>
+  )
+}
+
+function Switch(props: { checked: boolean; onChange: (next: boolean) => void }): JSX.Element {
+  return (
+    <button
+      style={{ ...style.switch, ...(props.checked ? style.switchOn : {}) }}
+      role="switch"
+      aria-checked={props.checked}
+      onClick={() => props.onChange(!props.checked)}
+    >
+      <span style={{ ...style.switchKnob, transform: props.checked ? 'translateX(16px)' : 'none' }} />
+    </button>
+  )
+}
+
+function Slider(props: {
+  value: number
+  min: number
+  max: number
+  step: number
+  onChange: (value: number) => void
+  minLabel: string
+  maxLabel: string
+  format: (value: number) => string
+}): JSX.Element {
+  return (
+    <div>
+      <div style={style.sliderRow}>
+        <span />
+        <span style={style.sliderValue}>{props.format(props.value)}</span>
+      </div>
+      <input
+        type="range"
+        min={props.min}
+        max={props.max}
+        step={props.step}
+        value={props.value}
+        onChange={(e) => props.onChange(Number(e.target.value))}
+        style={{ width: '100%', accentColor: C.accent }}
+      />
+      <div style={style.sliderBounds}>
+        <span>{props.minLabel}</span>
+        <span>{props.maxLabel}</span>
+      </div>
+    </div>
+  )
+}

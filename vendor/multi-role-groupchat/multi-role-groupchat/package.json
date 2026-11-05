@@ -1,0 +1,75 @@
+{
+  "name": "@zhdzh-good/multi-role-groupchat",
+  "version": "1.6.0",
+  "private": true,
+  "type": "module",
+  "description": "Multi-role group chat panel for DeepSeek Harness: smart addressee routing, probabilistic bystander replies, private member memory/relations, portable character/group JSON import-export, owner profile, @ handoffs, pins, rewrites, token budgets, and Markdown export.",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib/**/*.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "assets/icon-180.png",
+    "scripts/check-locales.mjs",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --test",
+    "qa:router": "node qa/router/run.mjs --mode local --out qa/reports/router-local.md",
+    "qa:router:hybrid": "node qa/router/run.mjs --mode hybrid",
+    "qa:router:model": "node qa/router/run.mjs --mode model",
+    "qa:roleplay": "node qa/roleplay/run.mjs",
+    "qa:roleplay:dry": "node qa/roleplay/run.mjs --dry-run --out qa/reports/roleplay-dry-run.md",
+    "qa:sweep": "node qa/router/sweep.mjs --out qa/reports/router-sweep.md",
+    "check:locales": "node scripts/check-locales.mjs",
+    "check": "npm test && node --check client.js && npm run check:locales && npm pack --dry-run"
+  },
+  "author": "zhdzh-good",
+  "license": "MIT",
+  "homepage": "https://github.com/zhdzh-good/multi-role-groupchat#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhdzh-good/multi-role-groupchat.git",
+    "directory": "multi-role-groupchat"
+  },
+  "bugs": {
+    "url": "https://github.com/zhdzh-good/multi-role-groupchat/issues"
+  },
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "group-chat",
+    "roleplay",
+    "multi-agent",
+    "ai-roleplay"
+  ],
+  "engines": {
+    "dsh": ">=0.2.1-rc.1 <0.3.0-0"
+  }
+}
